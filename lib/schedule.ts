@@ -57,6 +57,40 @@ export function assignmentStatus(a: Assignment, submissions: Submission[], today
   if (subs.some(s => s && ['submitted', 'approved'].includes(s.status))) return 'Part submitted';
   return a.date === today ? 'Due today' : 'Upcoming';
 }
+// Split a Monday checklist evenly between its two housemates. The member who
+// has gone longest without cleaning an area gets priority, so the same person
+// does not keep inheriting jobs such as the toilet. The fallback alternates
+// areas and is deterministic before the household has any weekly history.
+export function weeklyTaskPlan(a: Assignment, assignments: Assignment[], submissions: Submission[]): Record<string, string[]> {
+  if (a.kind !== 'weekly' || a.member_ids.length !== 2) return Object.fromEntries(a.member_ids.map(id => [id, [...a.tasks]]));
+  const history = assignments
+    .filter(item => item.kind === 'weekly' && item.date < a.date)
+    .sort((left, right) => left.date.localeCompare(right.date));
+  const stats = new Map<string, { count: number; last: string }>();
+  for (const item of history) {
+    for (const submission of submissions.filter(s => s.assignment_id === item.id && s.status !== 'draft')) {
+      for (const task of submission.tasks) {
+        const key = `${submission.member_id}\u0000${task}`;
+        stats.set(key, { count: (stats.get(key)?.count || 0) + 1, last: item.date });
+      }
+    }
+  }
+  const [first, second] = a.member_ids;
+  const limits: Record<string, number> = { [first]: Math.ceil(a.tasks.length / 2), [second]: Math.floor(a.tasks.length / 2) };
+  const plan: Record<string, string[]> = { [first]: [], [second]: [] };
+  a.tasks.forEach((task, taskIndex) => {
+    const candidates = [first, second].filter(id => plan[id].length < limits[id]);
+    const chosen = candidates.sort((left, right) => {
+      const l = stats.get(`${left}\u0000${task}`), r = stats.get(`${right}\u0000${task}`);
+      if ((l?.last || '') !== (r?.last || '')) return (l?.last || '').localeCompare(r?.last || '');
+      if ((l?.count || 0) !== (r?.count || 0)) return (l?.count || 0) - (r?.count || 0);
+      if (plan[left].length !== plan[right].length) return plan[left].length - plan[right].length;
+      return taskIndex % 2 === 0 ? (left === first ? -1 : 1) : (left === second ? -1 : 1);
+    })[0];
+    plan[chosen].push(task);
+  });
+  return plan;
+}
 export function reminderTypes(date: string, today: string, hour: number, settings: Settings, complete: boolean): string[] {
   if (!settings.reminders_enabled || complete) return [];
   if (date === addDays(today, 1) && hour >= settings.evening_hour) return ['tomorrow'];

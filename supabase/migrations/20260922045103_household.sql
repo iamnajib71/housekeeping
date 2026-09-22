@@ -47,7 +47,7 @@ create index email_jobs_assignment_idx on public.email_jobs(assignment_id);
 create table public.worker_health(id integer primary key check(id=1),last_run timestamptz,last_error text);
 insert into public.worker_health(id) values(1);
 insert into public.household_settings(id,daily_tasks,weekly_tasks) values(1,
- array['Wipe kitchen benches and stovetop','Wash up and clear the sink','Sweep shared areas','Take out rubbish and recycling'],
+ array['Wipe kitchen benches and surfaces','Clean the stovetop and the areas beside it','Remove unnecessary items from the kitchen','Wash dishes and clear the sink','Empty the bin when it is over 80% full','Check for dirt and sweep or wipe as needed'],
  array['Kitchen','Oven','Stove','Toilet','Bathroom','Common Space','Lounge room','Laundry']);
 -- Email addresses are private production data and are configured outside
 -- version control. A fresh install denies all Google accounts until an admin

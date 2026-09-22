@@ -25,7 +25,7 @@ npm run build
 node scripts/browser-check.mjs
 ```
 
-The public `/demo` route contains fictional people and does not write to the household database. The `/app` route requires an approved Google account. `/setup` explains the free reminder connection.
+The `/app` route requires an approved household Google account and returns a dashboard customized to that roster member. `/setup` explains the free reminder connection.
 
 ## Security
 
@@ -41,4 +41,4 @@ Read [Deployment](docs/DEPLOYMENT.md) and [Safe upgrades](docs/UPGRADES.md). Bui
 
 ## Tests
 
-Unit tests cover start dates, daily fairness, all Monday pairings, Melbourne daylight saving, reminders, and paired completion. Browser checks cover drafts, photo upload, submission, admin review, navigation, QR rendering, mobile overflow, and unauthenticated API access.
+Unit tests cover start dates, daily fairness, all Monday pairings, history-based 4-4 task allocation, Melbourne daylight saving, reminders, paired completion, and the supplied bin calendar. Browser checks cover the authenticated-only login, mobile overflow, removed demo route, and unauthenticated API access.

@@ -1,0 +1,4 @@
+import type { Member, Settings } from '../lib/types';
+
+export const testMembers: Member[] = ['Alex', 'Jamie', 'Sam', 'Taylor', 'Morgan', 'Casey'].map((name, position) => ({ id: `test-${position}`, name, position, role: position === 0 ? 'admin' : 'member', color: '#e4e9ef' }));
+export const defaultSettings: Settings = { id: 1, timezone: 'Australia/Melbourne', daily_start: '2026-09-29', weekly_start: '2026-10-05', daily_tasks: ['Wipe kitchen benches and surfaces', 'Clean the stovetop and the areas beside it', 'Remove unnecessary items from the kitchen', 'Wash dishes and clear the sink', 'Empty the bin when it is over 80% full', 'Check for dirt and sweep or wipe as needed'], weekly_tasks: ['Kitchen', 'Oven', 'Stove', 'Toilet', 'Bathroom', 'Common Space', 'Lounge room', 'Laundry'], morning_hour: 8, evening_hour: 19, deadline_hour: 21, reminders_enabled: true };

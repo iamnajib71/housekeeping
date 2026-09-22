@@ -5,7 +5,7 @@ The live household database is separate from deployments. Publishing a UI update
 ## Release workflow
 
 1. Work on a feature branch and run `npm ci`, `npm test`, `npm run typecheck`, and `npm run build`.
-2. Deploy a Vercel Preview without production database variables and use `/demo` for interface checks. Use a separate test database for changes that require real auth or storage.
+2. Deploy a Vercel Preview with a separate test database for authenticated interface and storage checks. Keep production credentials out of ordinary previews.
 3. Before a live database migration, export the affected tables. Supabase Free does not include automatic backups.
 4. Apply additive, backward-compatible migrations first. Add new columns, tables, or functions while keeping fields and APIs used by the live version.
 5. Deploy a production candidate without moving the live domain:

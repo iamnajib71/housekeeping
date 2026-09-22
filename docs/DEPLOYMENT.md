@@ -16,7 +16,7 @@ Configure these for Production only:
 - `WORKER_SECRET` as a Vercel Secret, using the same random value as Google Apps Script
 - `APP_URL`, the stable production HTTPS address without a trailing slash
 
-Do not connect preview deployments to the household database. Use `/demo`, a separate test Supabase project, or local Supabase for preview work. Worker endpoints refuse non-production Vercel environments.
+Do not connect ordinary preview deployments to the household database. Use a separate test Supabase project or local Supabase for preview work. A protected production candidate may use production variables for final read-only smoke checks before promotion. Worker endpoints refuse non-production Vercel environments.
 
 ## Google sign-in: one-time setup
 
