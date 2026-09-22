@@ -1,0 +1,9 @@
+.env*
+.local/
+.next/
+.git/
+tests/
+scripts/
+supabase/
+docs/
+*.tsbuildinfo
