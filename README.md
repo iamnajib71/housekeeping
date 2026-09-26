@@ -4,7 +4,7 @@ A private, mobile-friendly cleaning app for six housemates. Next.js runs on Verc
 
 ## Household rules
 
-- Daily rotation: Tuesday–Sunday, starting 29 September 2026. Every person has one turn per week; weekdays rotate over six weeks.
+- Kickoff clean: Najib on Sunday, 27 September 2026. The fair Tuesday–Sunday rotation follows, with every person receiving one turn per full week and rotating weekdays over six weeks.
 - Weekly deep clean: Mondays from 5 October 2026. All 15 pairs appear in a 15-week cycle.
 - Timezone: `Australia/Melbourne`, including daylight saving.
 - Deep-clean areas: Kitchen, Oven, Stove, Toilet, Bathroom, Common Space, Lounge room, and Laundry.

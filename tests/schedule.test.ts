@@ -4,7 +4,8 @@ import {addDays,generateSchedule,localClock,mondayOf,pairCycle,reminderTypes,ass
 import {testMembers,defaultSettings} from './fixtures';
 test('daily start and first Monday match agreed dates',()=>{
  const a=generateSchedule(testMembers,defaultSettings,'2026-09-22','2026-10-12');
- assert.equal(a[0].date,'2026-09-29');assert.equal(a.filter(x=>x.kind==='weekly')[0].date,'2026-10-05');
+ assert.equal(a[0].date,'2026-09-27');assert.deepEqual(a[0].member_ids,[testMembers[0].id]);
+ assert.equal(a.filter(x=>x.kind==='weekly')[0].date,'2026-10-05');
  assert.equal(a.filter(x=>x.date>='2026-09-29'&&x.date<='2026-10-04').length,6);
 });
 test('six-week daily cycle gives everyone every weekday once',()=>{

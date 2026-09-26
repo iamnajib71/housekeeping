@@ -7,7 +7,7 @@ create table public.members (
 );
 create table public.household_settings (
  id integer primary key check(id=1), timezone text not null default 'Australia/Melbourne' check(timezone='Australia/Melbourne'),
- daily_start date not null default '2026-09-29', weekly_start date not null default '2026-10-05',
+ daily_start date not null default '2026-09-27', weekly_start date not null default '2026-10-05',
  daily_tasks text[] not null, weekly_tasks text[] not null,
  evening_hour smallint not null default 19 check(evening_hour between 0 and 23),
  morning_hour smallint not null default 8 check(morning_hour between 0 and 23),

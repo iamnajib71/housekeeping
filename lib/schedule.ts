@@ -1,6 +1,6 @@
 import type { Assignment, Kind, Member, Settings, Submission } from './types';
 export const TIMEZONE = 'Australia/Melbourne';
-export const DAILY_START = '2026-09-29';
+export const DAILY_START = '2026-09-27';
 export const WEEKLY_START = '2026-10-05';
 const DAY = 86_400_000;
 export function addDays(date: string, days: number): string { return new Date(Date.parse(date + 'T12:00:00Z') + days * DAY).toISOString().slice(0, 10); }
@@ -40,9 +40,12 @@ export function generateSchedule(members: Member[], settings: Settings, from: st
       kind = 'weekly'; assigned = pairs[Math.floor(dayDifference(date, settings.weekly_start) / 7) % 15];
     } else if (day !== 1 && date >= settings.daily_start) {
       kind = 'daily';
-      const week = Math.floor(dayDifference(mondayOf(date), mondayOf(settings.daily_start)) / 7);
-      const slot = day === 0 ? 5 : day - 2;
-      assigned = [ids[((slot - week) % 6 + 6) % 6]];
+      if (date === settings.daily_start) assigned = [ids[0]];
+      else {
+        const week = Math.floor(dayDifference(mondayOf(date), mondayOf(settings.daily_start)) / 7);
+        const slot = day === 0 ? 5 : day - 2;
+        assigned = [ids[((slot - week) % 6 + 6) % 6]];
+      }
     } else continue;
     result.push({ id: `${kind}-${date}`, date, kind, member_ids: assigned, tasks: kind === 'daily' ? settings.daily_tasks : settings.weekly_tasks });
   }
