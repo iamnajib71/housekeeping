@@ -30,7 +30,7 @@ create index submissions_member_idx on public.submissions(member_id);
 create table public.photos (
  id uuid primary key default gen_random_uuid(), submission_id uuid not null references public.submissions(id),
  path text not null unique, uploaded boolean not null default false,
- created_at timestamptz not null default now(), expires_at timestamptz not null default now()+interval '7 days', deleted_at timestamptz
+ created_at timestamptz not null default now(), expires_at timestamptz not null default now()+interval '15 days', deleted_at timestamptz
 );
 create index photos_submission_idx on public.photos(submission_id);
 create index photos_expiry_idx on public.photos(expires_at) where deleted_at is null;

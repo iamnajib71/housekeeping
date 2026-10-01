@@ -55,7 +55,6 @@ export async function getAssignment(db:ReturnType<typeof database>,id:string):Pr
  if(!/^(daily|weekly)-\d{4}-\d{2}-\d{2}$/.test(id))throw new ApiError('Assignment not found.',404);
  const {data,error}=await db.from('assignments').select('*').eq('id',id).maybeSingle();if(error)throw error;if(!data)throw new ApiError('Assignment not found.',404);return data;
 }
-export function maySeeProof(member:Member,a:Assignment){return member.role==='admin'||a.member_ids.includes(member.id);}
 export function ok(value:unknown){return NextResponse.json(value,{headers:{'Cache-Control':'private, no-store'}});}
 export function failure(error:unknown){
  if(error instanceof ApiError)return NextResponse.json({error:error.message},{status:error.status,headers:{'Cache-Control':'no-store'}});

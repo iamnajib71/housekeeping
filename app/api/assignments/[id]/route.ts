@@ -1,9 +1,11 @@
-import { ApiError,bodyJson,checkOrigin,failure,getAssignment,maySeeProof,ok,requireMember } from '@/lib/server';
+import { ApiError,bodyJson,checkOrigin,failure,getAssignment,ok,requireMember } from '@/lib/server';
 export async function GET(_request:Request,{params}:{params:Promise<{id:string}>}){
  try{
   const {db,member}=await requireMember();const a=await getAssignment(db,(await params).id);
-  if(!maySeeProof(member,a))return ok({submissions:[],photos:[]});
-  const {data:submissions,error}=await db.from('submissions').select('*').eq('assignment_id',a.id);if(error)throw error;
+  const maySeeDrafts=member.role==='admin'||a.member_ids.includes(member.id);
+  let submissionQuery=db.from('submissions').select('*').eq('assignment_id',a.id);
+  if(!maySeeDrafts)submissionQuery=submissionQuery.neq('status','draft');
+  const {data:submissions,error}=await submissionQuery;if(error)throw error;
   if(!submissions?.length)return ok({submissions:[],photos:[]});
   const {data:photos,error:photoError}=await db.from('photos').select('*').in('submission_id',submissions.map(s=>s.id));if(photoError)throw photoError;
   const signed=await Promise.all((photos||[]).map(async p=>{

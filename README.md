@@ -10,7 +10,7 @@ A private, mobile-friendly cleaning app for six housemates. Next.js runs on Verc
 - Deep-clean areas: Kitchen, Oven, Stove, Toilet, Bathroom, Common Space, Lounge room, and Laundry.
 - Both Monday participants submit their own task list and photos.
 - Each person may upload up to 10 compressed photos per assignment.
-- Photos expire after seven days. Task history remains.
+- Submitted proof is visible to every signed-in household member. Photos expire after 15 days; task history remains.
 
 ## Local development
 

@@ -38,7 +38,7 @@ export async function pollEmails(limit:number) {
   const when=job.kind==='tomorrow'?'tomorrow':job.kind==='today'?'today':job.kind==='rework'?'needs a quick follow-up':'is overdue';
   const partner=a.member_ids.filter((id:string)=>id!==member.id).map((id:string)=>members.find(m=>m.id===id)?.name).join(' & ');
   const link=(process.env.APP_URL||'').replace(/\/$/,'')+'/app?assignment='+encodeURIComponent(a.id);
-  const body='Hi '+member.name+',\n\nYour '+label+' '+when+'.\nDate: '+formatDate(a.date)+' (Melbourne time)\n'+(partner?'Your partner: '+partner+'\n':'')+'\nTasks:\n'+a.tasks.map((t:string)=>'• '+t).join('\n')+(job.kind==='rework'?'\n\nAdmin note: '+sub.review_note:'')+'\n\nOpen your task, tick what you cleaned, and add photo proof:\n'+link+'\n\nPhotos are removed after 7 days. Thanks for doing your part!\nHousekeeping';
+  const body='Hi '+member.name+',\n\nYour '+label+' '+when+'.\nDate: '+formatDate(a.date)+' (Melbourne time)\n'+(partner?'Your partner: '+partner+'\n':'')+'\nTasks:\n'+a.tasks.map((t:string)=>'• '+t).join('\n')+(job.kind==='rework'?'\n\nAdmin note: '+sub.review_note:'')+'\n\nOpen your task, tick what you cleaned, and add photo proof:\n'+link+'\n\nPhotos are removed after 15 days. Thanks for doing your part!\nHousekeeping';
   messages.push({id:job.id,leaseToken:job.lease_token,to:member.email,subject:'Housekeeping: your '+label+' '+when,body});
  }
  const {error:healthError}=await db.from('worker_health').update({last_run:new Date().toISOString(),last_error:null}).eq('id',1);if(healthError)throw healthError;
