@@ -1,0 +1,64 @@
+import { chromium, expect } from '@playwright/test';
+import { mkdir } from 'node:fs/promises';
+const browser = await chromium.launch();
+const page = await browser.newPage({viewport:{width:390,height:844}});
+const errors=[]; page.on('pageerror',e=>errors.push(e.message));
+const members=['Najib','Shawon','Nasif','Siam','Ratul','Zarif'].map((name,position)=>({id:String(position),name,position,role:position===0?'admin':'member',color:'#dce9ff'}));
+const assignment={id:'daily-test',date:'2026-10-04',kind:'daily',member_ids:['1'],tasks:['Kitchen','Bathroom','Oven']};
+let me=members[0];
+let sub={id:'test-sub',assignment_id:assignment.id,member_id:'1',tasks:['Kitchen'],notes:'',status:'submitted',review_note:'',submitted_at:'2026-10-04T23:30:00Z',finished_at:'2026-10-04T23:30:00Z',started_at:'2026-10-04T23:00:00Z',task_feedback:[]};
+const photo={id:'photo',submission_id:sub.id,path:'test.jpg',uploaded:true,deleted_at:null,url:'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80"><rect width="80" height="80" fill="%23dce9ff"/></svg>'};
+let reviewRequests=0, startRequests=0, submittedTasks=[];
+await page.route('**/api/dashboard',route=>route.fulfill({json:{me,members,assignments:[assignment],submissions:[sub],today:'2026-10-05',settings:{id:1,timezone:'Australia/Melbourne',daily_start:'2026-09-27',weekly_start:'2026-10-05',daily_tasks:assignment.tasks,weekly_tasks:['Kitchen','Oven','Stove','Toilet','Bathroom','Common Space','Lounge room','Laundry'],deadline_hour:21,morning_hour:8,evening_hour:19,reminders_enabled:true}}}));
+await page.route('**/api/assignments/daily-test',async route=>{
+  if(route.request().method()==='GET')return route.fulfill({json:{submissions:[sub],photos:[photo]}});
+  const body=route.request().postDataJSON();
+  if(body.action==='start'){startRequests++;sub={...sub,started_at:new Date().toISOString(),finished_at:null};}
+  else {submittedTasks=body.tasks;sub={...sub,tasks:body.tasks,status:'submitted',finished_at:new Date().toISOString(),task_feedback:sub.task_feedback.map(f=>f.status==='rework'?{...f,status:'pending'}:f)};}
+  await route.fulfill({json:sub});
+});
+await page.route('**/api/admin',async route=>{
+  const body=route.request().postDataJSON();reviewRequests++;
+  expect(body.action).toBe('review_tasks');
+  expect(body.feedback).toEqual([{task:'Kitchen',status:'approved',note:''},{task:'Bathroom',status:'rework',note:'Clean the shower drain.'}]);
+  sub={...sub,status:'rework',task_feedback:body.feedback,review_note:'Bathroom: Clean the shower drain.'};
+  await route.fulfill({json:{ok:true,emailQueued:true}});
+});
+await page.goto('http://localhost:3007/app?assignment=daily-test',{waitUntil:'networkidle'});
+await page.getByLabel('Review Bathroom',{exact:true}).selectOption('rework');
+await page.getByRole('button',{name:'Request fixes & email (1)'}).click();
+await expect(page.getByRole('dialog').getByRole('alert')).toHaveText('Add a reason beside each task needing fixes.');
+expect(reviewRequests).toBe(0);
+await page.getByLabel('Reason for Bathroom',{exact:true}).fill('Clean the shower drain.');
+await page.getByRole('button',{name:'Request fixes & email (1)'}).click();
+await expect(page.getByRole('status')).toContainText('Requested fixes emailed');
+expect(reviewRequests).toBe(1);
+me=members[1];
+await page.reload({waitUntil:'networkidle'});
+await expect(page.getByRole('heading',{name:'Tasks to fix and resubmit'})).toBeVisible();
+const kitchen=page.getByRole('checkbox',{name:'Kitchen'}), bathroom=page.getByRole('checkbox',{name:'Bathroom',exact:true});
+await expect(kitchen).toBeChecked();await expect(kitchen).toBeDisabled();await expect(bathroom).not.toBeChecked();
+await expect(page.getByRole('button',{name:'Resubmit fixes'})).toBeDisabled();
+await page.getByRole('button',{name:'Start cleaning (optional)'}).click();
+await expect(page.getByText(/ends when you submit/)).toBeVisible();
+expect(startRequests).toBe(1);
+await page.reload({waitUntil:'networkidle'});
+await expect(page.getByText(/ends when you submit/)).toBeVisible();
+await bathroom.check();
+await expect(page.getByRole('button',{name:'Resubmit fixes'})).toBeEnabled();
+if(await page.locator('dialog').evaluate(e=>e.scrollWidth>e.clientWidth))throw new Error('Task dialog overflows on mobile');
+await mkdir('.local',{recursive:true});
+await page.screenshot({path:'.local/task-feedback-member.png'});
+await page.getByRole('button',{name:'Resubmit fixes'}).click();
+await expect(page.getByRole('dialog')).not.toBeVisible();
+expect(submittedTasks).toEqual(['Kitchen','Bathroom']);
+// A member who skips Start can submit normally.
+sub={...sub,status:'draft',task_feedback:[],tasks:['Kitchen'],started_at:null,finished_at:null};
+await page.reload({waitUntil:'networkidle'});
+await expect(page.getByRole('button',{name:'Start cleaning (optional)'})).toBeVisible();
+await expect(page.getByRole('button',{name:'Submit my clean'})).toBeEnabled();
+await page.getByRole('button',{name:'Submit my clean'}).click();
+expect(startRequests).toBe(1);
+if(errors.length)throw new Error(errors.join('; '));
+console.log('Task review, missing-task reasons, accepted task locking, optional Start persistence, targeted resubmission and mobile layout passed.');
+await browser.close();

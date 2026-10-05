@@ -18,6 +18,11 @@ export async function POST(request:Request){
    if(typeof s.reminders_enabled!=='boolean')throw new ApiError('Invalid reminder preference.');
    const {error}=await db.rpc('save_settings',{p_daily:[...new Set(s.daily_tasks.map((t:string)=>t.trim()))],p_weekly:[...new Set(s.weekly_tasks.map((t:string)=>t.trim()))],p_evening:s.evening_hour,p_morning:s.morning_hour,p_deadline:s.deadline_hour,p_enabled:s.reminders_enabled});if(error)throw error;return ok({ok:true});
   }
+  if(body.action==='review_tasks'){
+   if(typeof body.id!=='string'||!Array.isArray(body.feedback)||body.feedback.length<1||body.feedback.length>30||!body.feedback.every((f: {task?:unknown;status?:unknown;note?:unknown})=>f&&typeof f.task==='string'&&['approved','rework'].includes(String(f.status))&&typeof f.note==='string'&&f.note.length<=500&&(f.status!=='rework'||f.note.trim())))throw new ApiError('Choose a result for each task and enter a reason for every task needing fixes.');
+   const {error}=await db.rpc('review_tasks',{p_submission:body.id,p_feedback:body.feedback});if(error)throw new ApiError(error.message);
+   return ok({ok:true,emailQueued:body.feedback.some((f:{status:string})=>f.status==='rework')});
+  }
   if(body.action==='review'){
    if(!['approved','rework'].includes(body.status)||typeof body.note!=='string'||body.note.length>1000||(body.status==='rework'&&!body.note.trim()))throw new ApiError('Provide a valid review and a rejection reason.');
    const {error}=await db.rpc('review_clean',{p_submission:body.id,p_status:body.status,p_note:body.note.trim()});if(error)throw new ApiError(error.message);

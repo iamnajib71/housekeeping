@@ -2,6 +2,7 @@ import 'server-only';
 import { database,ensureSchedule,getMembers,getSettings } from './server';
 import { addDays,formatDate,localClock,reminderTypes } from './schedule';
 import type { Assignment,Submission } from './types';
+import { feedbackEmailDetails } from './task-feedback';
 export async function runMaintenance(db=database()) {
  const now=new Date().toISOString(), abandoned=new Date(Date.now()-86400000).toISOString();
  const {data:photos,error}=await db.from('photos').select('id,path').is('deleted_at',null).or('expires_at.lte.'+now+',and(uploaded.eq.false,created_at.lte.'+abandoned+')').limit(100);
@@ -40,9 +41,9 @@ export async function pollEmails(limit:number) {
   const link=(process.env.APP_URL||'').replace(/\/$/,'')+'/app?assignment='+encodeURIComponent(a.id);
   const rejected=job.kind==='rework';
   const body=rejected
-   ?'Hi '+member.name+',\n\nYour '+label+' submission for '+formatDate(a.date)+' was rejected.\n\nReason: '+sub.review_note+'\n\nOpen your task, make the requested changes, and resubmit with updated photo proof:\n'+link+'\n\nPhotos are removed after 15 days.\nHousekeeping'
+   ?'Hi '+member.name+',\n\nYour '+label+' submission for '+formatDate(a.date)+' needs fixes.\n\n'+feedbackEmailDetails(sub)+'\n\nOpen your task to see the specific fixes, complete and tick those tasks, then resubmit your proof:\n'+link+'\n\nPhotos are removed after 15 days.\nHousekeeping'
    :'Hi '+member.name+',\n\nYour '+label+' '+when+'.\nDate: '+formatDate(a.date)+' (Melbourne time)\n'+(partner?'Your partner: '+partner+'\n':'')+'\nTasks:\n'+a.tasks.map((t:string)=>'• '+t).join('\n')+'\n\nOpen your task, tick what you cleaned, and add photo proof:\n'+link+'\n\nPhotos are removed after 15 days. Thanks for doing your part!\nHousekeeping';
-  messages.push({id:job.id,leaseToken:job.lease_token,to:member.email,subject:rejected?'Housekeeping: '+label+' submission rejected':'Housekeeping: your '+label+' '+when,body});
+  messages.push({id:job.id,leaseToken:job.lease_token,to:member.email,subject:rejected?'Housekeeping: '+label+' needs fixes':'Housekeeping: your '+label+' '+when,body});
  }
  const {error:healthError}=await db.from('worker_health').update({last_run:new Date().toISOString(),last_error:null}).eq('id',1);if(healthError)throw healthError;
  return {jobs:messages,deleted};

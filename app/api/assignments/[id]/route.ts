@@ -22,6 +22,10 @@ export async function POST(request:Request,{params}:{params:Promise<{id:string}>
  try{
   checkOrigin(request);const {db,member}=await requireMember();const a=await getAssignment(db,(await params).id);const body=await bodyJson(request);
   if(!a.member_ids.includes(member.id))throw new ApiError('You can only submit your own assigned clean.',403);
+  if(body.action==='start'){
+   const {data,error}=await db.rpc('start_clean',{p_assignment:a.id,p_member:member.id});if(error)throw new ApiError(error.message);
+   return ok(data);
+  }
   if(!Array.isArray(body.tasks)||(body.action!=='draft'&&!body.tasks.length)||body.tasks.length>30||!body.tasks.every((t:unknown)=>typeof t==='string'&&a.tasks.includes(t)))throw new ApiError('Choose at least one valid completed task.');
   if(typeof body.notes!=='string'||body.notes.length>2000)throw new ApiError('Notes must be 2,000 characters or less.');
   const {data,error}=await db.rpc(body.action==='draft'?'save_draft':'submit_clean',{p_assignment:a.id,p_member:member.id,p_tasks:[...new Set(body.tasks)],p_notes:body.notes.trim()});if(error)throw new ApiError(error.message);

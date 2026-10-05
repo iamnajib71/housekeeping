@@ -11,7 +11,8 @@ A private, mobile-friendly cleaning app for six housemates. Next.js runs on Verc
 - Both Monday participants submit their own task list and photos.
 - Each person may upload up to 10 compressed photos per assignment.
 - Submitted proof is visible to every signed-in household member. Photos expire after 15 days; task history remains.
-- Admin reviews can approve or reject a submission. Rejections require a reason and queue a Gmail notification for the assigned housemate.
+- Admin reviews accept individual tasks and flag incomplete or missing tasks with reasons. Accepted tasks stay accepted; the member sees exactly what to fix and resubmit. Gmail includes the task-specific reasons.
+- Start cleaning is optional. Every submission records its end time; using Start also records an approximate duration including proof preparation. Resubmitting without a new Start records only an end time.
 
 ## Local development
 
@@ -24,6 +25,7 @@ npm test
 npm run typecheck
 npm run build
 node scripts/browser-check.mjs
+node scripts/task-feedback-check.mjs
 ```
 
 The `/app` route requires an approved household Google account and returns a dashboard customized to that roster member. `/setup` explains the free reminder connection.
@@ -40,6 +42,8 @@ Do not add browser table grants without matching, tested row-level security poli
 
 Read [Deployment](docs/DEPLOYMENT.md) and [Safe upgrades](docs/UPGRADES.md). Builds never reset or seed the live database. Do not edit a migration after it has been applied.
 
+Commercial product and future session-timing ideas are saved in [Product ideas](docs/PRODUCT_IDEAS.md).
+
 ## Tests
 
-Unit tests cover start dates, daily fairness, all Monday pairings, history-based 4-4 task allocation, Melbourne daylight saving, reminders, paired completion, and the supplied bin calendar. Browser checks cover the authenticated-only login, mobile overflow, removed demo route, and unauthenticated API access.
+Unit tests cover start dates, daily fairness, Monday pairing and task allocation, Melbourne daylight saving, reminders, bin collections, task feedback, and optional session timing. Browser checks cover login/auth gates plus admin task review, member resubmission, Start persistence, and mobile layout. `tests/task-feedback.integration.sql` verifies database guards and email queuing in a transaction that rolls back all fixtures.
