@@ -11,6 +11,7 @@ A private, mobile-friendly cleaning app for six housemates. Next.js runs on Verc
 - Both Monday participants submit their own task list and photos.
 - Each person may upload up to 10 compressed photos per assignment.
 - Submitted proof is visible to every signed-in household member. Photos expire after 15 days; task history remains.
+- Admin reviews can approve or reject a submission. Rejections require a reason and queue a Gmail notification for the assigned housemate.
 
 ## Local development
 

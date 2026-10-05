@@ -35,11 +35,14 @@ export async function pollEmails(limit:number) {
   const stale=job.kind==='tomorrow'?a.date!==addDays(clock.date,1):job.kind==='today'?a.date!==clock.date:job.kind==='overdue'?a.date<addDays(clock.date,-1)||a.date>clock.date:sub?.status!=='rework';
   if(!member?.email||!a.member_ids.includes(job.member_id)||done||stale){const {error}=await db.from('email_jobs').update({status:'cancelled'}).eq('id',job.id);if(error)throw error;continue;}
   const label=a.kind==='daily'?'daily reset':'Monday deep clean';
-  const when=job.kind==='tomorrow'?'tomorrow':job.kind==='today'?'today':job.kind==='rework'?'needs a quick follow-up':'is overdue';
+  const when=job.kind==='tomorrow'?'tomorrow':job.kind==='today'?'today':'is overdue';
   const partner=a.member_ids.filter((id:string)=>id!==member.id).map((id:string)=>members.find(m=>m.id===id)?.name).join(' & ');
   const link=(process.env.APP_URL||'').replace(/\/$/,'')+'/app?assignment='+encodeURIComponent(a.id);
-  const body='Hi '+member.name+',\n\nYour '+label+' '+when+'.\nDate: '+formatDate(a.date)+' (Melbourne time)\n'+(partner?'Your partner: '+partner+'\n':'')+'\nTasks:\n'+a.tasks.map((t:string)=>'• '+t).join('\n')+(job.kind==='rework'?'\n\nAdmin note: '+sub.review_note:'')+'\n\nOpen your task, tick what you cleaned, and add photo proof:\n'+link+'\n\nPhotos are removed after 15 days. Thanks for doing your part!\nHousekeeping';
-  messages.push({id:job.id,leaseToken:job.lease_token,to:member.email,subject:'Housekeeping: your '+label+' '+when,body});
+  const rejected=job.kind==='rework';
+  const body=rejected
+   ?'Hi '+member.name+',\n\nYour '+label+' submission for '+formatDate(a.date)+' was rejected.\n\nReason: '+sub.review_note+'\n\nOpen your task, make the requested changes, and resubmit with updated photo proof:\n'+link+'\n\nPhotos are removed after 15 days.\nHousekeeping'
+   :'Hi '+member.name+',\n\nYour '+label+' '+when+'.\nDate: '+formatDate(a.date)+' (Melbourne time)\n'+(partner?'Your partner: '+partner+'\n':'')+'\nTasks:\n'+a.tasks.map((t:string)=>'• '+t).join('\n')+'\n\nOpen your task, tick what you cleaned, and add photo proof:\n'+link+'\n\nPhotos are removed after 15 days. Thanks for doing your part!\nHousekeeping';
+  messages.push({id:job.id,leaseToken:job.lease_token,to:member.email,subject:rejected?'Housekeeping: '+label+' submission rejected':'Housekeeping: your '+label+' '+when,body});
  }
  const {error:healthError}=await db.from('worker_health').update({last_run:new Date().toISOString(),last_error:null}).eq('id',1);if(healthError)throw healthError;
  return {jobs:messages,deleted};

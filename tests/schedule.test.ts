@@ -38,6 +38,7 @@ test('a weekly clean is complete only after both members submit',()=>{
  const sub={id:'s1',assignment_id:a.id,member_id:a.member_ids[0],tasks:['Kitchen'],notes:'',status:'submitted' as const,submitted_at:null,review_note:''};
  assert.equal(assignmentStatus(a,[sub],'2026-10-05'),'Part submitted');
  assert.equal(assignmentStatus(a,[sub,{...sub,id:'s2',member_id:a.member_ids[1]}],'2026-10-05'),'In review');
+ assert.equal(assignmentStatus(a,[{...sub,status:'rework'}],'2026-10-05'),'Rejected');
 });
 
 test('weekly tasks are balanced and rotate away from recently cleaned areas',()=>{

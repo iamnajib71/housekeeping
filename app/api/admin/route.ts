@@ -19,9 +19,9 @@ export async function POST(request:Request){
    const {error}=await db.rpc('save_settings',{p_daily:[...new Set(s.daily_tasks.map((t:string)=>t.trim()))],p_weekly:[...new Set(s.weekly_tasks.map((t:string)=>t.trim()))],p_evening:s.evening_hour,p_morning:s.morning_hour,p_deadline:s.deadline_hour,p_enabled:s.reminders_enabled});if(error)throw error;return ok({ok:true});
   }
   if(body.action==='review'){
-   if(!['approved','rework'].includes(body.status)||typeof body.note!=='string'||body.note.length>1000||(body.status==='rework'&&!body.note.trim()))throw new ApiError('Provide a valid review and a note for rework.');
+   if(!['approved','rework'].includes(body.status)||typeof body.note!=='string'||body.note.length>1000||(body.status==='rework'&&!body.note.trim()))throw new ApiError('Provide a valid review and a rejection reason.');
    const {error}=await db.rpc('review_clean',{p_submission:body.id,p_status:body.status,p_note:body.note.trim()});if(error)throw new ApiError(error.message);
-   return ok({ok:true});
+   return ok({ok:true,emailQueued:body.status==='rework'});
   }
   if(body.action==='reassign'){
    if(!Array.isArray(body.memberIds)||body.memberIds.length>2)throw new ApiError('Choose one or two housemates.');

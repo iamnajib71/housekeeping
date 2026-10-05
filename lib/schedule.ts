@@ -54,7 +54,7 @@ export function generateSchedule(members: Member[], settings: Settings, from: st
 export function assignmentStatus(a: Assignment, submissions: Submission[], today: string): string {
   const subs = a.member_ids.map(id => submissions.find(s => s.assignment_id === a.id && s.member_id === id));
   if (subs.every(s => s?.status === 'approved')) return 'Approved';
-  if (subs.some(s => s?.status === 'rework')) return 'Needs rework';
+  if (subs.some(s => s?.status === 'rework')) return 'Rejected';
   if (subs.every(s => s && ['submitted', 'approved'].includes(s.status))) return 'In review';
   if (a.date < today) return 'Overdue';
   if (subs.some(s => s && ['submitted', 'approved'].includes(s.status))) return 'Part submitted';
