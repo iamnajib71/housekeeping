@@ -9,6 +9,7 @@ A private, mobile-friendly cleaning app for six housemates. Next.js runs on Verc
 - Timezone: `Australia/Melbourne`, including daylight saving.
 - Deep-clean areas: Kitchen, Oven, Stove, Toilet, Bathroom, Common Space, Lounge room, and Laundry.
 - Both Monday participants submit their own task list and photos.
+- The overview shows each member's submitted tasks as checked and links to their saved submission, with their Monday partner's status shown separately. The next-turn date skips that member's already submitted work.
 - Each person may upload up to 10 compressed photos per assignment.
 - Submitted proof is visible to every signed-in household member. Photos expire after 15 days; task history remains.
 - Admin reviews accept individual tasks and flag incomplete or missing tasks with reasons. Accepted tasks stay accepted; the member sees exactly what to fix and resubmit. Gmail includes the task-specific reasons.
@@ -28,6 +29,7 @@ npm run build
 node scripts/browser-check.mjs
 node scripts/task-feedback-check.mjs
 npx tsx scripts/onboarding-check.mts
+npx tsx scripts/submission-card-check.mts
 ```
 
 The `/app` route requires an approved household Google account and returns a dashboard customized to that roster member. `/setup` explains the free reminder connection.

@@ -1,13 +1,17 @@
 import { chromium, expect } from '@playwright/test';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
+import { randomUUID } from 'node:crypto';
+import { createClient } from '@supabase/supabase-js';
 import { detectVideoCleaningPlan } from '../lib/onboarding-ai';
-import { beginVideoUpload, sendVideoChunk, getVideoFile, deleteVideoFile, VIDEO_CHUNK_BYTES } from '../lib/cloud-video';
+import { beginVideoUpload, getVideoFile, deleteVideoFile, VIDEO_CHUNK_BYTES } from '../lib/cloud-video';
+import { relayVideoChunk, clearVideoBuffer, WALKTHROUGH_BUCKET } from '../lib/video-relay';
 import { CleaningPlan, planChecklists } from '../lib/onboarding';
 import { defaultSettings, testMembers } from '../tests/fixtures';
 createRequire(import.meta.url)('@next/env').loadEnvConfig(process.cwd());
-const base=process.env.CHECK_BASE_URL||'http://localhost:3009',realVideo=process.env.WALKTHROUGH_VIDEO;
+const base=process.env.CHECK_BASE_URL||'http://localhost:3007',realVideo=process.env.WALKTHROUGH_VIDEO;
 if(realVideo&&process.env.WALKTHROUGH_APPROVED!=='true')throw new Error('Explicit approval to send this private video to Google is required.');
+const db=realVideo?createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!,process.env.SUPABASE_SECRET_KEY!,{auth:{persistSession:false,autoRefreshToken:false}}):null;
 const browser=await chromium.launch(),page=await browser.newPage({viewport:{width:390,height:844}});
 const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
 let settings={...defaultSettings,cleaning_areas:['Kitchen','Oven','Stove','Toilet','Bathroom','Common Space','Lounge room','Laundry']};
@@ -17,7 +21,7 @@ await page.route('**/api/dashboard',r=>r.fulfill({json:{me:testMembers[0],member
 await page.route('**/api/onboarding/*/upload',async route=>{
   try{
     const bytes=route.request().postDataBuffer()!;expect(bytes.length).toBeLessThanOrEqual(VIDEO_CHUNK_BYTES);expect(Number(route.request().headers()['x-upload-offset'])).toBe(offset);
-    const final=offset+bytes.length===uploadSize;if(realVideo)providerFile=await sendVideoChunk(uploadUrl,bytes,offset,final)||providerFile;
+    const final=offset+bytes.length===uploadSize;if(db){const relayed=await relayVideoChunk(db,{id:trial.id,upload_url:uploadUrl,upload_size:uploadSize},bytes,offset);providerFile=relayed.file||providerFile;if(relayed.paths.length){const {error}=await db.storage.from(WALKTHROUGH_BUCKET).remove(relayed.paths);if(error)throw error;}}
     offset+=bytes.length;if(final)trial.status='processing';await route.fulfill({json:{nextOffset:offset,processing:final}});
   }catch(e){await route.fulfill({status:400,json:{error:(e as Error).message}});}
 });
@@ -26,7 +30,7 @@ await page.route('**/api/onboarding',async route=>{
     if(route.request().method()==='GET')return route.fulfill({json:{configured:true,trials:trial?[trial]:[]}});
     const body=route.request().postDataJSON();
     if(body.action==='start_video'){
-      expect(body.consent).toBe(true);uploadSize=body.size;offset=0;trial={id:'00000000-0000-4000-8000-000000000001',status:'uploading',created_at:new Date().toISOString(),frame_times:[],plan:null,applied_at:null};
+      expect(body.consent).toBe(true);uploadSize=body.size;offset=0;trial={id:randomUUID(),status:'uploading',created_at:new Date().toISOString(),frame_times:[],plan:null,applied_at:null};
       if(realVideo)uploadUrl=await beginVideoUpload(process.env.GEMINI_API_KEY!,body.size,body.mimeType,trial.id);return route.fulfill({json:trial});
     }
     if(body.action==='analyse_video'){
@@ -50,4 +54,4 @@ try {
   await page.getByRole('button',{name:'Confirm & replace setup'}).click();await expect(page.getByText(/Setup replaced across the app/)).toBeVisible();expect(applies).toBe(1);expect(saves).toBe(2);await expect(page.locator('.settings-grid textarea').first()).toHaveValue(settings.daily_tasks.join('\n'));
   await page.reload({waitUntil:'networkidle'});await page.getByLabel('Saved trial drafts',{exact:true}).selectOption(trial.id);await expect(page.getByLabel('Area name',{exact:true}).first()).toHaveValue('Trial area');await page.getByRole('button',{name:'Open navigation',exact:true}).click();await page.getByRole('button',{name:'Overview',exact:true}).click();await expect(page.locator('.deep-summary .area b').first()).toHaveText('Trial area');
   if(errors.length)throw new Error(errors.join('; '));expect((await page.request.get(base+'/api/onboarding')).status()).toBe(401);console.log('Cloud upload, consent, editable draft, explicit replacement, draft recovery, area summary, mobile layout and private API passed.');
-}finally{if(providerFile&&process.env.GEMINI_API_KEY)await deleteVideoFile(process.env.GEMINI_API_KEY,providerFile.name).catch(()=>{});await browser.close();}
+}finally{if(db&&trial)await clearVideoBuffer(db,trial.id).catch(()=>{});if(providerFile&&process.env.GEMINI_API_KEY)await deleteVideoFile(process.env.GEMINI_API_KEY,providerFile.name).catch(()=>{});await browser.close();}
