@@ -45,6 +45,19 @@ Fair cleaning schedules and clear accountability for shared homes. Pilot with 5â
 - Never equate screen interaction, photos, or elapsed session time with verified physical cleaning.
 - Balance chores by effort; use duration as supporting information, not rewards for longer timers.
 
+## Admin onboarding from a video walkthrough
+
+Added 5 October 2026. An admin cloud-video trial is implemented; broader onboarding features below remain ideas.
+
+- During initial onboarding, the admin records or uploads one guided walkthrough of the shared areas. Members do not need to record walkthroughs for normal tasks.
+- Suggest room names, relevant fixtures/appliances, and recurring cleaning duties using the walkthrough and standard cleaning templates. Do not infer that an already clean area has no recurring duties.
+- Show each proposed area beside its supporting video timestamp or frame; allow the admin to rename, merge, delete, and add areas and tasks before saving.
+- Admin confirms daily/weekly frequencies, expectations, and approximate effort; the app uses those confirmed duties with its fair rotation and task-specific feedback flow.
+- Mark unseen or unclear areas as needing confirmation; offer a short extra clip or manual entry. Hidden oven interiors, hygiene, and cleaning completion cannot reliably be verified from an ordinary walkthrough.
+- Explore optional spoken room names to help identify similar spaces.
+- Avoid recording people/private spaces; minimize video retention, preferably deleting originals after processing and retaining selected evidence only under the configured policy.
+- Evaluate recognition accuracy and API cost/quota using real household videos before promising automated detection or a free production tier.
+
 ## Current work
 
-The current app adds task-specific feedback, an optional Start cleaning button, and submission time as the session end. Duration is approximate and includes proof preparation. Pause/resume, duration correction, separate finish controls, and broader commercial features remain future ideas.
+The current app adds task-specific feedback, an optional Start cleaning button, and submission time as the session end. Duration is approximate and includes proof preparation. Admins can also trial cloud video analysis, edit suggested areas/duties, save drafts and explicitly replace the active setup without changing started work. See [Walkthrough trial](WALKTHROUGH_TRIAL.md). Pause/resume, duration correction, separate finish controls, and broader commercial features remain future ideas.

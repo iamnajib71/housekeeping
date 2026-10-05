@@ -13,6 +13,7 @@ A private, mobile-friendly cleaning app for six housemates. Next.js runs on Verc
 - Submitted proof is visible to every signed-in household member. Photos expire after 15 days; task history remains.
 - Admin reviews accept individual tasks and flag incomplete or missing tasks with reasons. Accepted tasks stay accepted; the member sees exactly what to fix and resubmit. Gmail includes the task-specific reasons.
 - Start cleaning is optional. Every submission records its end time; using Start also records an approximate duration including proof preparation. Resubmitting without a new Start records only an end time.
+- Admin walkthrough trial: upload or record a common-area video, review AI suggestions, and explicitly replace the active areas and duties. Started work and submitted history are preserved. See [Walkthrough trial](docs/WALKTHROUGH_TRIAL.md) for cloud setup, free-tier limits and privacy details.
 
 ## Local development
 
@@ -26,6 +27,7 @@ npm run typecheck
 npm run build
 node scripts/browser-check.mjs
 node scripts/task-feedback-check.mjs
+npx tsx scripts/onboarding-check.mts
 ```
 
 The `/app` route requires an approved household Google account and returns a dashboard customized to that roster member. `/setup` explains the free reminder connection.
@@ -47,3 +49,5 @@ Commercial product and future session-timing ideas are saved in [Product ideas](
 ## Tests
 
 Unit tests cover start dates, daily fairness, Monday pairing and task allocation, Melbourne daylight saving, reminders, bin collections, task feedback, and optional session timing. Browser checks cover login/auth gates plus admin task review, member resubmission, Start persistence, and mobile layout. `tests/task-feedback.integration.sql` verifies database guards and email queuing in a transaction that rolls back all fixtures.
+
+Walkthrough unit tests cover plan validation and the resumable Google upload protocol. `tests/onboarding.integration.sql` and `tests/cloud-upload.integration.sql` verify replacement protections, rate limits, upload leases and private permissions inside rolled-back transactions. `scripts/onboarding-check.mts` mocks household APIs to exercise upload, consent, draft recovery, replacement and mobile layout; set `CHECK_BASE_URL` to the running app. Its optional real-video mode requires explicit transfer approval and never applies the draft to production.

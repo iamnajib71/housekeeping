@@ -3,7 +3,15 @@ import { database,ensureSchedule,getMembers,getSettings } from './server';
 import { addDays,formatDate,localClock,reminderTypes } from './schedule';
 import type { Assignment,Submission } from './types';
 import { feedbackEmailDetails } from './task-feedback';
+import { deleteVideoFile } from './cloud-video';
+import { clearVideoBuffer } from './video-relay';
 export async function runMaintenance(db=database()) {
+ const {data:oldTrials}=await db.from('walkthrough_trials').select('id,status').is('buffer_cleaned_at',null).lt('created_at',new Date(Date.now()-2*60*60*1000).toISOString()).order('created_at').limit(5);
+ await Promise.allSettled((oldTrials||[]).map(async trial=>{await clearVideoBuffer(db,trial.id);const {error}=await db.from('walkthrough_trials').update({buffer_cleaned_at:new Date().toISOString()}).eq('id',trial.id);if(error)throw error;if(trial.status==='uploading')await db.from('walkthrough_trials').update({status:'failed',upload_url:null}).eq('id',trial.id).eq('status','uploading');}));
+ if(process.env.GEMINI_API_KEY){
+  const {data:expired}=await db.from('walkthrough_trials').select('id,provider_file').not('provider_file','is',null).or('status.in.(ready,failed),created_at.lt.'+new Date(Date.now()-2*60*60*1000).toISOString()).limit(2);
+  await Promise.allSettled((expired||[]).map(async trial=>{await deleteVideoFile(process.env.GEMINI_API_KEY!,trial.provider_file);const {error}=await db.from('walkthrough_trials').update({provider_file:null,upload_url:null,status:'failed'}).eq('id',trial.id).in('status',['uploading','processing','analyzing','failed']);if(error)throw error;await db.from('walkthrough_trials').update({provider_file:null,upload_url:null}).eq('id',trial.id).eq('status','ready');}));
+ }
  const now=new Date().toISOString(), abandoned=new Date(Date.now()-86400000).toISOString();
  const {data:photos,error}=await db.from('photos').select('id,path').is('deleted_at',null).or('expires_at.lte.'+now+',and(uploaded.eq.false,created_at.lte.'+abandoned+')').limit(100);
  if(error)throw error;
