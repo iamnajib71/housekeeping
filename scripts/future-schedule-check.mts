@@ -38,9 +38,15 @@ try{
  await page.locator('.assignment-row').filter({has:page.locator('.date-square b',{hasText:'11'})}).click();
  await expect(page.getByRole('region',{name:'Assigned duties'}).locator('li')).toHaveText(daily.tasks);
  await page.getByRole('button',{name:'Close task',exact:true}).click();
+ await page.getByLabel('Jump to schedule date').fill('2026-10-06');
+ const tuesday=assignments.find(a=>a.date==='2026-10-06')!;
+ await page.locator('.assignment-row').filter({has:page.locator('.date-square b',{hasText:'6',exact:true})}).click();
+ await expect(page.getByRole('region',{name:'Assigned duties'}).locator('li')).toHaveText(tuesday.tasks);
+ await expect(page.getByRole('dialog')).toContainText('Put collection bins out Tuesday night: Red lid, Green lid, Yellow lid');
+ await page.getByRole('button',{name:'Close task',exact:true}).click();
  await page.setViewportSize({width:390,height:844});
  if(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth))throw new Error('Schedule overflows on mobile');
  await page.screenshot({path:'.local/future-schedule-mobile.png'});
  if(errors.length||writes.length)throw new Error(JSON.stringify({errors,writes}));
- console.log('Dashboard Monday selector, future daily duties, both Monday shares, assigned and unassigned viewers, date jumps, no future edits, and mobile layout passed.');
+ console.log('Dashboard Monday selector, Tuesday bin duties, future daily duties, both Monday shares, assigned and unassigned viewers, date jumps, no future edits, and mobile layout passed.');
 }finally{await browser.close();}

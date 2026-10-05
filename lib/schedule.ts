@@ -1,4 +1,5 @@
 import type { Assignment, Kind, Member, Settings, Submission } from './types';
+import { dailyTasksForDate } from './waste';
 export const TIMEZONE = 'Australia/Melbourne';
 export const DAILY_START = '2026-09-27';
 export const WEEKLY_START = '2026-10-05';
@@ -47,7 +48,7 @@ export function generateSchedule(members: Member[], settings: Settings, from: st
         assigned = [ids[((slot - week) % 6 + 6) % 6]];
       }
     } else continue;
-    result.push({ id: `${kind}-${date}`, date, kind, member_ids: assigned, tasks: kind === 'daily' ? settings.daily_tasks : settings.weekly_tasks });
+    result.push({ id: `${kind}-${date}`, date, kind, member_ids: assigned, tasks: kind === 'daily' ? dailyTasksForDate(settings.daily_tasks, date) : settings.weekly_tasks });
   }
   return result;
 }

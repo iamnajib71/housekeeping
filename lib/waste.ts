@@ -18,3 +18,21 @@ export function wasteCollectionsBetween(from: string, to: string): WasteCollecti
 export function shortBinName(bin: WasteBin): string {
   return ({ 'General rubbish': 'Red lid', 'Food & garden organics': 'Green lid', 'Mixed recycling': 'Yellow lid', 'Glass recycling': 'Purple lid' })[bin];
 }
+
+export function binOutTask(date: string): string | undefined {
+  if (new Date(date + 'T12:00:00Z').getUTCDay() !== 2) return;
+  const tomorrow = new Date(Date.parse(date + 'T12:00:00Z') + 86400000).toISOString().slice(0, 10);
+  const collection = COLLECTIONS.find(item => item.date === tomorrow);
+  return collection
+    ? 'Put collection bins out Tuesday night: ' + collection.bins.map(shortBinName).join(', ') + ' (Wednesday collection)'
+    : 'Put collection bins out Tuesday night; check council calendar for lids due';
+}
+
+// Keep the daily fullness check separate from the once-a-week collection duty.
+export function dailyTasksForDate(tasks: string[], date: string): string[] {
+  const base = tasks
+    .filter(task => !task.startsWith('Put collection bins out Tuesday night') && task !== 'Check for Bin Collection (Tuesday)')
+    .map(task => task.replace('; put due collection bins out Tuesday night', ''));
+  const binTask = binOutTask(date);
+  return binTask ? [...base, binTask] : base;
+}

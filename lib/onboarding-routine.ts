@@ -6,7 +6,7 @@ const kitchenDaily = [
   'Wipe kitchen benches and surfaces',
   'Clean the stovetop and beside it if needed',
   'Clear kitchen clutter and rinse or wipe the sink',
-  'Check bins; empty only when over 80% full; put due collection bins out Tuesday night',
+  'Check bins; empty only when over 80% full',
 ];
 const spotCheck = 'Check shared areas for dirt; spot-clean only as needed';
 const hygieneCheck = 'Check bathroom/toilet hygiene; wipe fresh spills or mess only as needed';
