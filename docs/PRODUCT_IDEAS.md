@@ -57,6 +57,7 @@ Added 5 October 2026. An admin cloud-video trial is implemented; broader onboard
 - Explore optional spoken room names to help identify similar spaces.
 - Avoid recording people/private spaces; minimize video retention, preferably deleting originals after processing and retaining selected evidence only under the configured policy.
 - Evaluate recognition accuracy and API cost/quota using real household videos before promising automated detection or a free production tier.
+- Future live-view mode (idea only): run a small object detector in the phone browser, overlay fixture labels, and infer suggested rooms from combinations such as sink/stove or sofa/table. Accumulate areas during the walkthrough, keep ambiguous or similar rooms separate until confirmed, and use cleaning templates to propose duties. Confirm area names at the end. On-device inference avoids recurring vision API costs; camera performance and supported fixture classes need device testing. [Google's browser object-detection example](https://codelabs.developers.google.com/mp-object-detection-web).
 
 ## Current work
 

@@ -1,9 +1,22 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { snapshotTimes, validatePlan, validateFrames, planChecklists, CleaningPlan } from '../lib/onboarding';
+import { snapshotTimes, validatePlan, validateVideoPlan, validateFrames, planChecklists, CleaningPlan } from '../lib/onboarding';
 import { detectCleaningPlan } from '../lib/onboarding-ai';
 const plan:CleaningPlan={areas:[{name:'Kitchen',fixtures:['Stove','Sink'],daily:['Wipe benches'],weekly:['Clean the oven'],frameIndex:0,confidence:'high'}],unseenAreas:['Laundry'],notes:'Confirm unseen areas.'};
 const frames=[{seconds:1,data:'/9j/'+ 'A'.repeat(24)}];
+
+test('impossible model timestamps become unknown without inventing video evidence',()=>{
+  const video={...plan,areas:[{...plan.areas[0],frameIndex:null,seconds:153}]};
+  const checked=validateVideoPlan(video,141);
+  assert.equal(checked.areas[0].seconds,null);
+  assert.equal(checked.areas[0].confidence,'low');
+  assert.deepEqual(checked.areas[0].weekly,video.areas[0].weekly);
+  assert.match(checked.notes,/timestamps were invalid and removed/);
+  assert.equal(video.areas[0].seconds,153);
+  assert.equal(validateVideoPlan({...video,areas:[{...video.areas[0],seconds:100}]},141).areas[0].seconds,100);
+  assert.throws(()=>validateVideoPlan({...video,areas:[{...video.areas[0],frameIndex:0}]},141));
+  assert.throws(()=>validateVideoPlan(video,181));
+});
 test('video sampling stays inside duration and keeps short clips valid',()=>{
   assert.equal(snapshotTimes(180).length,12);
   assert.ok(snapshotTimes(2).every(t=>t>=0&&t<2));

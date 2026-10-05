@@ -50,6 +50,26 @@ export function planChecklists(plan: CleaningPlan) {
   }
   return {daily,weekly,areas:plan.areas.map(a=>a.name)};
 }
+// Model timestamps are suggestions. Discard impossible moments rather than
+// inventing evidence or losing an otherwise useful, editable draft.
+export function validateVideoPlan(value: unknown, duration = MAX_WALKTHROUGH_SECONDS): CleaningPlan {
+  if (!Number.isFinite(duration) || duration <= 0 || duration > MAX_WALKTHROUGH_SECONDS) throw new OnboardingError('Invalid recording duration.');
+  const candidate = value as Partial<CleaningPlan> | null;
+  let removed = false;
+  const areas = Array.isArray(candidate?.areas) ? candidate.areas.map(area => {
+    if (area && area.seconds !== undefined && area.seconds !== null && (typeof area.seconds !== 'number' || !Number.isFinite(area.seconds) || area.seconds < 0 || area.seconds > duration)) {
+      removed = true;
+      return {...area, seconds:null, confidence:'low'};
+    }
+    return area;
+  }) : candidate?.areas;
+  const plan = validatePlan({...candidate, areas}, 0);
+  if (removed) {
+    const note = 'Some suggested timestamps were invalid and removed. Confirm the areas marked low confidence.';
+    plan.notes = `${plan.notes.slice(0, 1000 - note.length - 1)}\n${note}`.trim();
+  }
+  return plan;
+}
 export function snapshotTimes(duration: number, count = 12) {
   if (!Number.isFinite(duration) || duration <= 0 || duration > MAX_WALKTHROUGH_SECONDS) throw new OnboardingError('Use a video up to 3 minutes long.');
   const total = Math.min(MAX_WALKTHROUGH_FRAMES, Math.max(1, Math.floor(count)), Math.max(1,Math.ceil(duration)));

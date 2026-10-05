@@ -52,7 +52,7 @@ export async function POST(request:Request) {
       try{
         const duration=Number(file.videoMetadata?.videoDuration?.replace(/s$/,''));
         if(file.state!=='ACTIVE'||!Number.isFinite(duration)||duration<=0||duration>180)throw new ApiError('Google could not read this video, or it exceeds 3 minutes. Try a shorter recording.');
-        const plan=await detectVideoCleaningPlan(file.uri,trial.video_mime,key,process.env.GEMINI_MODEL||'gemini-2.5-flash');
+        const plan=await detectVideoCleaningPlan(file.uri,trial.video_mime,key,process.env.GEMINI_MODEL||'gemini-2.5-flash',duration);
         const {data,error}=await db.from('walkthrough_trials').update({status:'ready',plan}).eq('id',trial.id).select('id,created_at,status,plan,frame_times,applied_at').single();if(error)throw error;return ok(data);
       }catch(e){await db.from('walkthrough_trials').update({status:'failed'}).eq('id',trial.id);throw e;}
       finally{try{await deleteVideoFile(key,trial.provider_file);await db.from('walkthrough_trials').update({provider_file:null,upload_url:null}).eq('id',trial.id);}catch{/* Maintenance retries temporary-file deletion. */}}
