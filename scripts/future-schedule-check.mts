@@ -26,6 +26,7 @@ try{
  const summary=page.locator('.deep-summary');await expect(summary.locator('p')).toContainText('12 Oct');
  await expect(summary.locator('.area small').filter({hasText:'Assigned to'})).toHaveCount(defaultSettings.weekly_tasks.length);
  await page.setViewportSize({width:390,height:844});
+ await expect.poll(()=>page.locator('.sidebar').evaluate(el=>el.getBoundingClientRect().right)).toBeLessThanOrEqual(0);
  if(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth))throw new Error('Monday selector overflows on mobile');
  await summary.scrollIntoViewIfNeeded();await page.screenshot({path:'.local/future-monday-overview.png'});await page.setViewportSize({width:1280,height:720});
  await summary.getByRole('button',{name:'View clean'}).click();await expect(page.getByRole('region',{name:'Assigned duties'})).toBeVisible();await page.getByRole('button',{name:'Close task',exact:true}).click();
