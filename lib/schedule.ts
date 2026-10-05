@@ -70,10 +70,13 @@ export function weeklyTaskPlan(a: Assignment, assignments: Assignment[], submiss
     .filter(item => item.kind === 'weekly' && item.date < a.date)
     .sort((left, right) => left.date.localeCompare(right.date));
   const stats = new Map<string, { count: number; last: string }>();
+  // A revised description is still the same area. Carry old area-only history
+  // into the new grouped checklist so setup replacements do not reset fairness.
+  const areaKey = (task: string) => task.split(': ')[0].trim().toLowerCase();
   for (const item of history) {
     for (const submission of submissions.filter(s => s.assignment_id === item.id && s.status !== 'draft')) {
       for (const task of submission.tasks) {
-        const key = `${submission.member_id}\u0000${task}`;
+        const key = `${submission.member_id}\u0000${areaKey(task)}`;
         stats.set(key, { count: (stats.get(key)?.count || 0) + 1, last: item.date });
       }
     }
@@ -84,7 +87,7 @@ export function weeklyTaskPlan(a: Assignment, assignments: Assignment[], submiss
   a.tasks.forEach((task, taskIndex) => {
     const candidates = [first, second].filter(id => plan[id].length < limits[id]);
     const chosen = candidates.sort((left, right) => {
-      const l = stats.get(`${left}\u0000${task}`), r = stats.get(`${right}\u0000${task}`);
+      const l = stats.get(`${left}\u0000${areaKey(task)}`), r = stats.get(`${right}\u0000${areaKey(task)}`);
       if ((l?.last || '') !== (r?.last || '')) return (l?.last || '').localeCompare(r?.last || '');
       if ((l?.count || 0) !== (r?.count || 0)) return (l?.count || 0) - (r?.count || 0);
       if (plan[left].length !== plan[right].length) return plan[left].length - plan[right].length;

@@ -7,6 +7,7 @@ import { detectVideoCleaningPlan } from '../lib/onboarding-ai';
 import { beginVideoUpload, getVideoFile, deleteVideoFile, VIDEO_CHUNK_BYTES } from '../lib/cloud-video';
 import { relayVideoChunk, clearVideoBuffer, WALKTHROUGH_BUCKET } from '../lib/video-relay';
 import { CleaningPlan, planChecklists } from '../lib/onboarding';
+import { lightCleaningRoutine } from '../lib/onboarding-routine';
 import { defaultSettings, testMembers } from '../tests/fixtures';
 createRequire(import.meta.url)('@next/env').loadEnvConfig(process.cwd());
 const base=process.env.CHECK_BASE_URL||'http://localhost:3007',realVideo=process.env.WALKTHROUGH_VIDEO;
@@ -15,7 +16,7 @@ const db=realVideo?createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!,process.en
 const browser=await chromium.launch(),page=await browser.newPage({viewport:{width:390,height:844}});
 const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
 let settings={...defaultSettings,cleaning_areas:['Kitchen','Oven','Stove','Toilet','Bathroom','Common Space','Lounge room','Laundry']};
-let plan:CleaningPlan={areas:[{name:'Kitchen',fixtures:['Sink','Stove'],daily:['Wipe benches'],weekly:['Clean the oven'],frameIndex:null,seconds:.4,confidence:'high'}],unseenAreas:['Bathroom'],notes:'Confirm areas not shown.'};
+let plan:CleaningPlan=lightCleaningRoutine({areas:[{name:'Kitchen',fixtures:['Sink','Stove'],daily:['Wipe benches'],weekly:['Clean the stovetop'],frameIndex:null,seconds:.4,confidence:'high'}],unseenAreas:['Bathroom'],notes:'Confirm areas not shown.'});
 let trial:any=null,saves=0,applies=0,uploadSize=0,offset=0,uploadUrl='',providerFile:any=null;
 await page.route('**/api/dashboard',r=>r.fulfill({json:{me:testMembers[0],members:testMembers,settings,assignments:[],submissions:[],today:'2026-10-05'}}));
 await page.route('**/api/onboarding/*/upload',async route=>{
@@ -35,7 +36,7 @@ await page.route('**/api/onboarding',async route=>{
     }
     if(body.action==='analyse_video'){
       if(realVideo){const file=await getVideoFile(process.env.GEMINI_API_KEY!,providerFile.name);if(file.state==='PROCESSING')return route.fulfill({json:{processing:true}});if(file.state!=='ACTIVE')throw new Error('Google could not process this recording.');
-        plan=await detectVideoCleaningPlan(file.uri,file.mimeType||'video/mp4',process.env.GEMINI_API_KEY!,process.env.GEMINI_MODEL||'gemini-2.5-flash');await mkdir('.local',{recursive:true});await writeFile('.local/walkthrough-test-result.json',JSON.stringify(plan,null,2));
+        plan=await detectVideoCleaningPlan(file.uri,file.mimeType||'video/mp4',process.env.GEMINI_API_KEY!,process.env.GEMINI_MODEL||'gemini-2.5-flash',Number(file.videoMetadata?.videoDuration?.replace(/s$/,'')));await mkdir('.local',{recursive:true});await writeFile('.local/walkthrough-test-result.json',JSON.stringify(plan,null,2));
         console.log('Real-video areas: '+plan.areas.map(a=>a.name).join(', '));console.log('Daily duties: '+plan.areas.reduce((n,a)=>n+a.daily.length,0)+'; weekly duties: '+plan.areas.reduce((n,a)=>n+a.weekly.length,0));await deleteVideoFile(process.env.GEMINI_API_KEY!,file.name);providerFile=null;}
       trial={...trial,status:'ready',plan};return route.fulfill({json:trial});
     }
@@ -54,7 +55,7 @@ try {
     page.locator('.onboarding-panel').getByRole('alert').waitFor({state:'visible',timeout}).then(async()=>{throw new Error(await page.locator('.onboarding-panel').getByRole('alert').innerText());})
   ]);expect(plan.areas.length).toBeGreaterThan(0);expect(offset).toBe(uploadSize);
   await page.getByLabel('Area name',{exact:true}).first().fill('Trial area');await page.getByRole('button',{name:'Save trial draft',exact:true}).click();await expect(page.getByText('Trial draft saved. The active cleaning setup has not changed.')).toBeVisible();expect(applies).toBe(0);
-  await page.getByRole('button',{name:'Preview replacement'}).click();await expect(page.getByRole('heading',{name:'Replace the current setup?'})).toBeVisible();await mkdir('.local',{recursive:true});await page.screenshot({path:'.local/onboarding-mobile.png'});if(await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth))throw new Error('Onboarding page overflows on mobile');
+  await page.getByRole('button',{name:'Preview replacement'}).click();await expect(page.getByRole('heading',{name:'Replace the current setup?'})).toBeVisible();expect(planChecklists(plan).daily.length).toBeLessThanOrEqual(6);await expect(page.locator('.walkthrough-apply').getByText(`Daily · ${planChecklists(plan).daily.length} duties`,{exact:true})).toBeVisible();await mkdir('.local',{recursive:true});await page.screenshot({path:'.local/onboarding-mobile.png'});if(await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth))throw new Error('Onboarding page overflows on mobile');
   await page.getByRole('button',{name:'Confirm & replace setup'}).click();await expect(page.getByText(/Setup replaced across the app/)).toBeVisible();expect(applies).toBe(1);expect(saves).toBe(2);await expect(page.locator('.settings-grid textarea').first()).toHaveValue(settings.daily_tasks.join('\n'));
   await page.reload({waitUntil:'networkidle'});await page.getByLabel('Saved trial drafts',{exact:true}).selectOption(trial.id);await expect(page.getByLabel('Area name',{exact:true}).first()).toHaveValue('Trial area');await page.getByRole('button',{name:'Open navigation',exact:true}).click();await page.getByRole('button',{name:'Overview',exact:true}).click();await expect(page.locator('.deep-summary .area b').first()).toHaveText('Trial area');
   if(errors.length)throw new Error(errors.join('; '));expect((await page.request.get(base+'/api/onboarding')).status()).toBe(401);console.log('Cloud upload, consent, editable draft, explicit replacement, draft recovery, area summary, mobile layout and private API passed.');

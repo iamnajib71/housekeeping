@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { snapshotTimes, validatePlan, validateVideoPlan, validateFrames, planChecklists, CleaningPlan } from '../lib/onboarding';
 import { detectCleaningPlan } from '../lib/onboarding-ai';
+import { lightCleaningRoutine } from '../lib/onboarding-routine';
 const plan:CleaningPlan={areas:[{name:'Kitchen',fixtures:['Stove','Sink'],daily:['Wipe benches'],weekly:['Clean the oven'],frameIndex:0,confidence:'high'}],unseenAreas:['Laundry'],notes:'Confirm unseen areas.'};
 const frames=[{seconds:1,data:'/9j/'+ 'A'.repeat(24)}];
 
@@ -49,7 +50,7 @@ test('provider request uses images and schema, returns validated draft, and hand
       assert.equal(payload.generationConfig.responseMimeType,'application/json');
       return Response.json({candidates:[{content:{parts:[{text:JSON.stringify(plan)}]}}]});
     };
-    assert.deepEqual(await detectCleaningPlan(frames,'test-key'),plan);
+    assert.deepEqual(await detectCleaningPlan(frames,'test-key'),lightCleaningRoutine(plan));
     globalThis.fetch=async()=>new Response('{}',{status:429});
     await assert.rejects(detectCleaningPlan(frames,'test-key'),/quota/);
     globalThis.fetch=async()=>Response.json({candidates:[{content:{parts:[{text:'{"areas":[{"name":"invented"}]}'}]}}]});
