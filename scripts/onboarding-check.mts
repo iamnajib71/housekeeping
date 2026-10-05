@@ -22,8 +22,8 @@ await page.route('**/api/onboarding/*/upload',async route=>{
   try{
     const bytes=route.request().postDataBuffer()!;expect(bytes.length).toBeLessThanOrEqual(VIDEO_CHUNK_BYTES);expect(Number(route.request().headers()['x-upload-offset'])).toBe(offset);
     const final=offset+bytes.length===uploadSize;if(db){const relayed=await relayVideoChunk(db,{id:trial.id,upload_url:uploadUrl,upload_size:uploadSize},bytes,offset);providerFile=relayed.file||providerFile;if(relayed.paths.length){const {error}=await db.storage.from(WALKTHROUGH_BUCKET).remove(relayed.paths);if(error)throw error;}}
-    offset+=bytes.length;if(final)trial.status='processing';await route.fulfill({json:{nextOffset:offset,processing:final}});
-  }catch(e){await route.fulfill({status:400,json:{error:(e as Error).message}});}
+    const previous=offset;offset+=bytes.length;if(final)trial.status='processing';if(realVideo&&(final||Math.floor(offset/(10*1024*1024))>Math.floor(previous/(10*1024*1024))))console.log(`Cloud video upload: ${Math.round(offset/uploadSize*100)}%`);await route.fulfill({json:{nextOffset:offset,processing:final}});
+  }catch(e){if(realVideo)console.error('Cloud upload test failed: '+(e as Error).message);await route.fulfill({status:400,json:{error:(e as Error).message}});}
 });
 await page.route('**/api/onboarding',async route=>{
   try{
@@ -40,7 +40,7 @@ await page.route('**/api/onboarding',async route=>{
       trial={...trial,status:'ready',plan};return route.fulfill({json:trial});
     }
     trial={...trial,plan:body.plan};saves++;if(body.action==='apply'){applies++;const lists=planChecklists(body.plan);settings={...settings,daily_tasks:lists.daily,weekly_tasks:lists.weekly,cleaning_areas:lists.areas};trial.applied_at=new Date().toISOString();}return route.fulfill({json:{ok:true,changed:2}});
-  }catch(e){await route.fulfill({status:400,json:{error:(e as Error).message}});}
+  }catch(e){if(realVideo)console.error('Cloud analysis test failed: '+(e as Error).message);await route.fulfill({status:400,json:{error:(e as Error).message}});}
 });
 try {
   await page.goto(base+'/app?view=setup',{waitUntil:'networkidle'});await expect(page.getByRole('heading',{name:'Set up your home from a walkthrough'})).toBeVisible();
@@ -48,7 +48,11 @@ try {
   else {const bytes=await page.evaluate(async()=>{const c=document.createElement('canvas');c.width=320;c.height=240;const ctx=c.getContext('2d')!;ctx.fillStyle='#dce9ff';ctx.fillRect(0,0,c.width,c.height);const stream=c.captureStream(10),recorder=new MediaRecorder(stream,{mimeType:'video/webm'}),chunks:BlobPart[]=[];
     const timer=setInterval(()=>{ctx.fillStyle=Math.random()>.5?'#dce9ff':'#edf3ff';ctx.fillRect(0,0,c.width,c.height);},80);const data=await new Promise<Blob>(resolve=>{recorder.ondataavailable=e=>chunks.push(e.data);recorder.onstop=()=>resolve(new Blob(chunks,{type:'video/webm'}));recorder.start();setTimeout(()=>recorder.stop(),1200);});clearInterval(timer);stream.getTracks().forEach(t=>t.stop());return Array.from(new Uint8Array(await data.arrayBuffer()));});await page.locator('input[type=file][accept="video/*"]').first().setInputFiles({name:'test.webm',mimeType:'video/webm',buffer:Buffer.from(bytes)});}
   await expect(page.getByRole('heading',{name:'Walkthrough ready to upload'})).toBeVisible();await expect(page.getByRole('button',{name:'Analyse walkthrough'})).toBeDisabled();await page.getByRole('checkbox',{name:/Send this video/}).check();await page.getByRole('button',{name:'Analyse walkthrough'}).click();
-  await expect(page.getByRole('heading',{name:'Review your proposed setup'})).toBeVisible({timeout:realVideo?300000:15000});expect(plan.areas.length).toBeGreaterThan(0);expect(offset).toBe(uploadSize);
+  const timeout=realVideo?1200000:15000;
+  await Promise.race([
+    expect(page.getByRole('heading',{name:'Review your proposed setup'})).toBeVisible({timeout}),
+    page.locator('.onboarding-panel').getByRole('alert').waitFor({state:'visible',timeout}).then(async()=>{throw new Error(await page.locator('.onboarding-panel').getByRole('alert').innerText());})
+  ]);expect(plan.areas.length).toBeGreaterThan(0);expect(offset).toBe(uploadSize);
   await page.getByLabel('Area name',{exact:true}).first().fill('Trial area');await page.getByRole('button',{name:'Save trial draft',exact:true}).click();await expect(page.getByText('Trial draft saved. The active cleaning setup has not changed.')).toBeVisible();expect(applies).toBe(0);
   await page.getByRole('button',{name:'Preview replacement'}).click();await expect(page.getByRole('heading',{name:'Replace the current setup?'})).toBeVisible();await mkdir('.local',{recursive:true});await page.screenshot({path:'.local/onboarding-mobile.png'});if(await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth))throw new Error('Onboarding page overflows on mobile');
   await page.getByRole('button',{name:'Confirm & replace setup'}).click();await expect(page.getByText(/Setup replaced across the app/)).toBeVisible();expect(applies).toBe(1);expect(saves).toBe(2);await expect(page.locator('.settings-grid textarea').first()).toHaveValue(settings.daily_tasks.join('\n'));
