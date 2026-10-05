@@ -21,7 +21,15 @@ async function checkFutureWeekly(){
  await page.getByRole('button',{name:'Close task',exact:true}).click();
 }
 try{
- await page.goto(base+'/app',{waitUntil:'networkidle'});await openSchedule();await checkFutureWeekly();
+ await page.goto(base+'/app',{waitUntil:'networkidle'});
+ await page.getByLabel('Deep-clean date').selectOption('2026-10-12');
+ const summary=page.locator('.deep-summary');await expect(summary.locator('p')).toContainText('12 Oct');
+ await expect(summary.locator('.area small').filter({hasText:'Assigned to'})).toHaveCount(defaultSettings.weekly_tasks.length);
+ await page.setViewportSize({width:390,height:844});
+ if(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth))throw new Error('Monday selector overflows on mobile');
+ await summary.scrollIntoViewIfNeeded();await page.screenshot({path:'.local/future-monday-overview.png'});await page.setViewportSize({width:1280,height:720});
+ await summary.getByRole('button',{name:'View clean'}).click();await expect(page.getByRole('region',{name:'Assigned duties'})).toBeVisible();await page.getByRole('button',{name:'Close task',exact:true}).click();
+ await openSchedule();await checkFutureWeekly();
  // The next Monday belongs to other housemates; both sets must remain visible.
  me=testMembers.find(m=>m.id===assignments.find(a=>a.id==='weekly-2026-10-12')!.member_ids[0])!;await page.reload({waitUntil:'networkidle'});await openSchedule();await checkFutureWeekly();
  await page.getByLabel('Jump to schedule date').fill('2026-11-11');
@@ -33,5 +41,5 @@ try{
  if(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth))throw new Error('Schedule overflows on mobile');
  await page.screenshot({path:'.local/future-schedule-mobile.png'});
  if(errors.length||writes.length)throw new Error(JSON.stringify({errors,writes}));
- console.log('Future daily duties, both Monday shares, assigned and unassigned viewers, date jumps, no future edits, and mobile layout passed.');
+ console.log('Dashboard Monday selector, future daily duties, both Monday shares, assigned and unassigned viewers, date jumps, no future edits, and mobile layout passed.');
 }finally{await browser.close();}
