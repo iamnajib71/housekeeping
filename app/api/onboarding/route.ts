@@ -2,6 +2,7 @@ import { ApiError, checkOrigin, failure, ok, requireMember } from '@/lib/server'
 import { OnboardingError, planChecklists, validateFrames, validatePlan } from '@/lib/onboarding';
 import { detectCleaningPlan, detectVideoCleaningPlan } from '@/lib/onboarding-ai';
 import { beginVideoUpload, deleteVideoFile, getVideoFile, MAX_VIDEO_BYTES, VIDEO_TYPES } from '@/lib/cloud-video';
+import { mapAreasToPlan } from '@/lib/mapping';
 export const maxDuration=90;
 export const runtime='nodejs';
 
@@ -25,6 +26,14 @@ export async function GET() {
 export async function POST(request:Request) {
   try {
     checkOrigin(request);const {db,member}=await requireMember(true);const body=await readBody(request);
+    if(body.action==='import_map'){
+      // Geometry stays in the browser. Only bounded, admin-confirmed labels are saved.
+      const plan=mapAreasToPlan(body.areas,body.duration);
+      const {data:trial,error}=await db.rpc('begin_walkthrough',{p_member:member.id,p_times:[0]});
+      if(error)throw new ApiError(error.message,429);
+      const {data,error:saveError}=await db.from('walkthrough_trials').update({status:'ready',plan}).eq('id',trial.id).eq('member_id',member.id).select('id,created_at,status,plan,frame_times,applied_at').single();
+      if(saveError)throw saveError;return ok(data);
+    }
     if(body.action==='start_video'){
       const key=process.env.GEMINI_API_KEY;if(!key)throw new ApiError('The Gemini API key is not configured.',503);
       if(body.consent!==true)throw new ApiError('Confirm the video may be sent to Google for analysis.');

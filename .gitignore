@@ -9,3 +9,4 @@ playwright-report/
 .local/
 .codex-remote-attachments/
 supabase/.temp/
+__pycache__/

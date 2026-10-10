@@ -18,6 +18,8 @@ A private, mobile-friendly cleaning app for six housemates. Next.js runs on Verc
 
 ## Local development
 
+An isolated admin [3D mapping trial](docs/MAPPING_TRIAL.md) runs LingBot-Map on a Colab GPU and imports a bounded map for manual area labelling. The active cleaning workflow changes only after reviewing and confirming a draft.
+
 Use Node 22. Copy `.env.example` to `.env.local` and fill the values. Never commit that file.
 
 ```sh

@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Camera, Check, LoaderCircle, Plus, Sparkles, Trash2, Upload } from 'lucide-react';
 import { CleaningArea, CleaningPlan, planChecklists, timeLabel, WalkthroughTrial } from '@/lib/onboarding';
 import { MAX_VIDEO_BYTES, VIDEO_CHUNK_BYTES, VIDEO_TYPES } from '@/lib/cloud-video';
+import { MappingPanel } from './mapping-panel';
 
 async function request(body?: unknown) {
   const r=await fetch('/api/onboarding',body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:undefined);
@@ -69,6 +70,7 @@ export function OnboardingPanel({onApplied}:{onApplied:()=>Promise<void>}) {
   return <section className="card onboarding-panel">
     <div className="section-heading"><div><span className="eyebrow">ADMIN ONBOARDING · TRIAL</span><h2>Set up your home from a walkthrough</h2><p>Record the shared areas once. Review suggested duties, then choose when to replace the active setup.</p></div><Sparkles size={23}/></div>
     {loading?<p><LoaderCircle className="spin" size={16}/> Checking walkthrough setup…</p>:<>
+      <MappingPanel onDraft={result=>{setTrial(result);setPlan(result.plan);setConfirmApply(false);setMessage('Mapping draft saved. Review the area labels and duties below before applying.');refresh().catch(e=>setError(e.message));}}/>
       {!configured&&<div className="notice">Video analysis needs a Gemini API key in the app’s server settings. Your existing cleaning routine is available as usual.</div>}
       <div className="walkthrough-guide"><b>A slow walkthrough works best</b><p>Use a video up to 3 minutes / 250 MB. Pause briefly at benches, appliances and each room. Spoken room names can help. Record common areas only; avoid people, private conversations and personal documents.</p><small>Analysis runs in Google’s cloud. Upload chunks pass through private temporary storage and are removed as they are forwarded. Google’s temporary video is deleted after analysis; interrupted uploads are cleaned up later. Housekeeping retains the editable plan. Use a Google project with billing disabled to stay on the free tier.</small></div>
       <div className="button-row"><button className="button" disabled={busy} onClick={()=>upload.current?.click()}><Upload size={16}/>Choose walkthrough video</button><button className="button" disabled={busy} onClick={()=>capture.current?.click()}><Camera size={16}/>Record walkthrough</button></div>
