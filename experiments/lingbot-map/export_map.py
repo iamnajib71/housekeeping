@@ -96,6 +96,7 @@ def run(args):
     from lingbot_map.models.gct_stream import GCTStream
     from lingbot_map.utils.load_fn import load_and_preprocess_images
     from lingbot_map.utils.pose_enc import pose_encoding_to_extri_intri
+    from lingbot_map.utils.geometry import unproject_depth_map_to_point_map
     with tempfile.TemporaryDirectory(prefix="mapping-frames-") as folder:
         paths, times, duration = extract_frames(args.video, Path(folder), args.fps,
                                                clip_seconds=getattr(args, "clip_seconds", 30))
@@ -122,14 +123,18 @@ def run(args):
         elapsed = time.perf_counter() - started
         peak = torch.cuda.max_memory_allocated() / (1024 * 1024)
         pose = result["pose_enc"].float().cpu()
-        extrinsic, _ = pose_encoding_to_extri_intri(pose, images.shape[-2:])
+        extrinsic, intrinsic = pose_encoding_to_extri_intri(pose, images.shape[-2:])
         extrinsic = extrinsic.cpu().numpy().reshape(-1, 3, 4)
+        intrinsic = intrinsic.cpu().numpy().reshape(-1, 3, 3)
         world_to_camera = np.tile(np.eye(4), (len(extrinsic), 1, 1))
         world_to_camera[:, :3, :4] = extrinsic
         positions = np.linalg.inv(world_to_camera)[:, :3, 3]
         colors = images.detach().float().cpu().permute(0, 2, 3, 1).numpy() * 255
-        points = result["world_points"].float().cpu().numpy()
-        confidence = result["world_points_conf"].float().cpu().numpy()
+        # The pinned streaming checkpoint predicts depth, not a direct point map.
+        # Match the upstream viewer's depth-to-world reconstruction path.
+        depth = result["depth"].float().cpu().numpy().reshape(len(times), *images.shape[-2:], 1)
+        points = unproject_depth_map_to_point_map(depth, extrinsic, intrinsic)
+        confidence = result["depth_conf"].float().cpu().numpy()
         metrics = {"inferenceSeconds": round(elapsed, 3), "peakGpuMb": round(peak, 1), "frames": len(times)}
         output = compact_map(points, confidence, colors, positions, times, duration, metrics)
         encoded = json.dumps(output, separators=(",", ":"), allow_nan=False)
@@ -137,7 +142,8 @@ def run(args):
             raise RuntimeError("Export exceeds the bounded browser import size.")
         Path(args.output).write_text(encoded, encoding="utf-8")
         report = {"gpu": torch.cuda.get_device_name(), "sourceRevision": revision,
-                  "modelRevision": MODEL_REVISION, **metrics, "points": len(output["points"]), "bytes": len(encoded)}
+                  "modelRevision": MODEL_REVISION, "reconstruction": "depth_unprojected",
+                  **metrics, "points": len(output["points"]), "bytes": len(encoded)}
         Path(args.output).with_suffix(".benchmark.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
         print(json.dumps(report, indent=2))
 

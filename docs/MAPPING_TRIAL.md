@@ -24,6 +24,18 @@ Download the map JSON and benchmark report. In the app, sign in as admin and ope
 
 `npm test` covers map validation and task draft conversion. `scripts/mapping-check.mts` checks mobile import, invalid-file errors, labels-only draft submission, explicit review and anonymous API denial. `test_export_map.py` checks compact geometry exports on CPU without loading the model. Synthetic fixtures validate the interface only; a real cloud GPU result is required before making reconstruction performance claims.
 
+## Measured cloud trial (10 October 2026)
+
+The original approved onboarding recording completed on a free Colab Tesla T4. The first 30 seconds produced 60 sampled frames at 336-pixel input, 20,000 exported points and a 793,903-byte map. GPU inference took 13.682 seconds, with 3,774.6 MB of peak allocated GPU memory. Installation, checkpoint loading, frame extraction and CPU export are excluded from that timing. The exporter unprojects the checkpoint's depth predictions using its estimated camera poses and intrinsics, matching the upstream viewer's reconstruction path.
+
+The actual geometry passed import validation and mobile rendering in the deployed app. Draft writes were mocked during that UI check, so the household schedule was not replaced. This confirms the trial runs and exports; it does not establish room-recognition accuracy, reconstruction completeness, measured scale, or cleaning detection. Personal geometry and the source video remain outside the public repository.
+
+## Local comparison
+
+On Windows with Python 3.12, Git and an NVIDIA CUDA GPU, run `powershell -NoProfile -File scripts/setup-mapping.ps1` from the checkout. It uses an isolated `.local/mapping-venv`, pins the upstream checkout, resumes the checkpoint download and verifies its published SHA-256. It checks GPU availability without running inference. No global Python environment is changed.
+
+After the cloud trial, run `powershell -NoProfile -File scripts/run-mapping.ps1 -Video "path/to/recording.mp4"`. Defaults are 252-pixel input and 1 fps for the local 8 GB RTX 3070. The first 30 seconds are processed. Results and a benchmark report are written under `.local`, which Git ignores. Import the map into the live app to compare it with the cloud result. Optional parameters are `-ClipSeconds`, `-ImageSize` and `-Fps`. Close other GPU-heavy apps before running. No local web server or database key is required for inference.
+
 ## Sources
 
 - [LingBot-Map source and Apache 2.0 license](https://github.com/Robbyant/lingbot-map)

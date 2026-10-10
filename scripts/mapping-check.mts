@@ -1,6 +1,7 @@
 import {chromium,expect} from '@playwright/test';
 import {testMembers,defaultSettings} from '../tests/fixtures';
-import {mapAreasToPlan} from '../lib/mapping';
+import {mapAreasToPlan,validateHouseMap} from '../lib/mapping';
+import {readFile} from 'node:fs/promises';
 import {createRequire} from 'node:module';
 createRequire(import.meta.url)('@next/env').loadEnvConfig(process.cwd());
 const base=process.env.CHECK_BASE_URL||'http://localhost:3011';
@@ -25,7 +26,7 @@ try{
   const input=page.getByLabel('Import 3D map file');
   await input.setInputFiles({name:'invalid.json',mimeType:'application/json',buffer:Buffer.from('{}')});
   await expect(page.locator('.mapping-trial [role=alert]')).toBeVisible();
-  const map={format:'housekeeping-map-v1',model:'lingbot-map',revision:'a'.repeat(40),duration:2,points:[[0,0,0,255,255,255],[1,1,1,0,255,255]],cameras:[{seconds:0,position:[0,0,0]},{seconds:1,position:[1,0,0]}],metrics:{inferenceSeconds:1,peakGpuMb:1,frames:2}};
+  const map=process.env.CHECK_MAP_FILE?validateHouseMap(JSON.parse(await readFile(process.env.CHECK_MAP_FILE,'utf8'))):{format:'housekeeping-map-v1',model:'lingbot-map',revision:'a'.repeat(40),duration:2,points:[[0,0,0,255,255,255],[1,1,1,0,255,255]],cameras:[{seconds:0,position:[0,0,0]},{seconds:1,position:[1,0,0]}],metrics:{inferenceSeconds:1,peakGpuMb:1,frames:2}};
   await input.setInputFiles({name:'unit-fixture.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(map))});
   await expect(page.locator('.mapping-trial canvas')).toBeVisible();
   await expect(page.getByRole('button',{name:'Create cleaning draft'})).toBeDisabled();
@@ -36,7 +37,7 @@ try{
   expect(imports).toBe(1);expect(applies).toBe(0);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await page.locator('.mapping-trial').screenshot({path:'.local/mapping-mobile.png'});
-  expect((await page.request.post(base+'/api/onboarding',{headers:{Origin:new URL(process.env.APP_URL||base).origin},data:{action:'import_map',areas:[],duration:2}})).status()).toBe(401);
+  expect((await page.request.post(base+'/api/onboarding',{headers:{Origin:new URL(process.env.CHECK_APP_ORIGIN||process.env.APP_URL||base).origin},data:{action:'import_map',areas:[],duration:2}})).status()).toBe(401);
   expect(errors).toEqual([]);
-  console.log('Map import, invalid-file handling, mobile canvas, labels-only draft, explicit review and anonymous API denial passed. Synthetic geometry tests UI only; no model benchmark claim.');
+  console.log('Map import, invalid-file handling, mobile canvas, labels-only draft, explicit review and anonymous API denial passed. '+(process.env.CHECK_MAP_FILE?'Real cloud geometry imported; draft writes are mocked.':'Synthetic geometry tests UI only; no model benchmark claim.'));
 }finally{await browser.close();}
