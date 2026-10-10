@@ -34,6 +34,16 @@ The original approved onboarding recording completed on a free Colab Tesla T4. T
 
 The actual geometry passed import validation and mobile rendering in the deployed app. Draft writes were mocked during that UI check, so the household schedule was not replaced. This confirms the trial runs and exports; it does not establish room-recognition accuracy, reconstruction completeness, measured scale, or cleaning detection. Personal geometry and the source video remain outside the public repository.
 
+### Second recording (11 October 2026)
+
+The replacement 90-second, 1080p recording was tested on a free Colab Tesla T4 using its first 30 seconds. Actual settings were the detailed profile at **336 pixels and 2 fps**, eight scale frames, four camera refinement steps, a 32-frame cache and keyframe interval one. The earlier 518-pixel attempt did not return a recoverable result before its connection was lost; no performance claim is made for that attempt.
+
+The completed run exported 60 cameras, 30,000 points and 1,196,185 bytes. GPU inference took **15.738 seconds**, with **4,905.9 MB** peak allocated GPU memory; setup, checkpoint loading, video decoding and CPU export are excluded. The real map passed deployed-app import, mobile rendering, bounded labels-only draft creation, explicit review and anonymous API denial checks. Draft writes were mocked.
+
+Inspection from multiple angles shows separated surfaces and a camera path with large jumps. More exported points and additional refinement did not establish a reliable room model. The map should remain an experiment, not an accurate floor plan or an automatically accepted household configuration.
+
+The official MCP bridge's default 1 MB WebSocket response limit was exceeded during automatic retrieval. The result was recovered using Colab's native `files.download`, without repeating inference. Future automated retrieval should use separately requested chunks below that limit; printing all chunks in one response still exceeds it. No personal geometry, source video or download credentials are committed.
+
 ## Local comparison
 
 On Windows with Python 3.12, Git and an NVIDIA CUDA GPU, run `powershell -NoProfile -File scripts/setup-mapping.ps1` from the checkout. It uses an isolated `.local/mapping-venv`, pins the upstream checkout, resumes the checkpoint download and verifies its published SHA-256. It checks GPU availability without running inference. No global Python environment is changed.
