@@ -1,10 +1,26 @@
 """CPU-only adapter checks. These do not run or benchmark LingBot-Map."""
 import json
 import unittest
+from unittest.mock import patch
 import numpy as np
-from export_map import compact_map
+from pathlib import Path
+from export_map import compact_map, extract_frames
 
 class ExportTests(unittest.TestCase):
+    def test_frame_cap_does_not_overstate_timeline(self):
+        import cv2
+        class Recording:
+            def isOpened(self): return True
+            def get(self, prop): return 30 if prop == cv2.CAP_PROP_FPS else 1800
+            def set(self, *args): pass
+            def read(self): return True, np.zeros((2,2,3), dtype=np.uint8)
+            def release(self): pass
+        with patch.object(cv2, 'VideoCapture', return_value=Recording()), patch.object(cv2, 'imwrite', return_value=True):
+            paths, times, duration = extract_frames('recording.mp4', Path('.'), fps=4, clip_seconds=60)
+        self.assertEqual(len(paths), 120)
+        self.assertEqual(duration, 30)
+        self.assertEqual(times[-1], 29.75)
+
     def test_bounded_finite_json_with_relative_camera_coordinates(self):
         rng=np.random.default_rng(42)
         points=rng.normal(size=(1000,3))

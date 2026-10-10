@@ -8,6 +8,10 @@ Open [the notebook in Colab](https://colab.research.google.com/github/iamnajib71
 
 Upload one recording below 250 MB and up to three minutes. The default trial samples the first 30 seconds at 2 fps and uses 336-pixel images. Use a slow continuous walkthrough. For memory errors, reconnect and use 252-pixel images and 1 fps. Longer experiments need their own resource assessment.
 
+For a more detailed comparison, set `PROFILE="detailed"` in the benchmark cell. It selects 518-pixel input, 4 fps, eight initial scale frames, four camera refinement steps, a 32-frame attention cache and every frame as a keyframe. Export density increases to 30,000 points. This uses more GPU memory and does not guarantee accurate geometry. The 120-camera cap limits a 4 fps reconstruction to 30 seconds; the exported timeline reports only that segment. The report records the actual settings for comparison.
+
+Record one room or connected area first: landscape 1080p, normal 1× lens, good steady lighting and a slow continuous walk with overlapping views. Avoid zooming, sudden turns and spinning in one place. A point cloud remains sparse geometry rather than a finished textured model. Compare the camera path and overlapping surfaces, not just how many points were exported.
+
 The notebook pins upstream code to `8fdf984a7f9caf391622ea5843a8410900d27ef2` and the checkpoint to Hugging Face revision `204754b`. PyTorch 2.8, NumPy 2.2.6 and OpenCV 4.11 are installed in the temporary runtime. Model loading uses `weights_only=True` and requires matching state keys. GPU inference timing excludes installation and model loading; the report includes actual GPU, frame count, allocated peak GPU memory, export size and revisions. These reduced settings are not paper benchmark results.
 
 Download the map JSON and benchmark report. In the app, sign in as admin and open setup → Experimental 3D home mapping → Import map result. Rotate the reconstruction, inspect camera positions by video time, and add area labels and visible fixtures. Create a cleaning draft and review it through the existing replacement workflow. No schedule changes happen until the final confirmation. Daily duties use the existing light routine; Monday work uses the existing division and rotation; Tuesday bin duties are retained. Started/submitted work keeps its original checklist and history.
@@ -35,6 +39,8 @@ The actual geometry passed import validation and mobile rendering in the deploye
 On Windows with Python 3.12, Git and an NVIDIA CUDA GPU, run `powershell -NoProfile -File scripts/setup-mapping.ps1` from the checkout. It uses an isolated `.local/mapping-venv`, pins the upstream checkout, resumes the checkpoint download and verifies its published SHA-256. It checks GPU availability without running inference. No global Python environment is changed.
 
 After the cloud trial, run `powershell -NoProfile -File scripts/run-mapping.ps1 -Video "path/to/recording.mp4"`. Defaults are 252-pixel input and 1 fps for the local 8 GB RTX 3070. The first 30 seconds are processed. Results and a benchmark report are written under `.local`, which Git ignores. Import the map into the live app to compare it with the cloud result. Optional parameters are `-ClipSeconds`, `-ImageSize` and `-Fps`. Close other GPU-heavy apps before running. No local web server or database key is required for inference.
+
+`-Profile detailed -ImageSize 518 -Fps 4` selects the larger comparison settings locally. These settings have not been benchmarked on the local RTX 3070; keep the smaller defaults until the cloud result has been reviewed.
 
 ## Sources
 
