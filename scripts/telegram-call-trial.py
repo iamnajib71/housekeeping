@@ -7,9 +7,12 @@ import argparse
 import asyncio
 import json
 import os
+import logging
+import hashlib
 from pathlib import Path
 from datetime import datetime, timezone
 from dotenv import load_dotenv
+from telegram_call_audio import play_after_connection, maintain_call_updates
 
 ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(ROOT / '.env.local')
@@ -26,7 +29,8 @@ async def main():
     if not api_id.isdigit() or len(api_hash) != 32:
         raise RuntimeError('Save TELEGRAM_API_ID and TELEGRAM_API_HASH in .env.local first.')
     from telethon import TelegramClient
-    from telethon.tl.functions.contacts import ResolvePhoneRequest
+    from telethon.tl.functions.contacts import ResolvePhoneRequest, GetContactsRequest
+    from telethon.errors import PhoneNotOccupiedError
     from telethon.tl.types import User
     client = TelegramClient(str(ROOT / '.local/telegram-caller'), int(api_id), api_hash,
                             device_model='Housekeeping private call trial')
@@ -39,6 +43,9 @@ async def main():
             return
         if not await client.is_user_authorized():
             raise RuntimeError('Run --login in a private terminal first. No call placed.')
+        # A connected socket alone is insufficient: explicitly subscribe to
+        # live updates before requesting a private call and waiting for Answer.
+        await client.set_receive_updates(True)
         me = await client.get_me()
         if me.bot:
             raise RuntimeError('A normal Telegram user account is required, not a bot.')
@@ -49,10 +56,21 @@ async def main():
         target = config.get('username')
         if target:
             recipient = await client.get_entity(target)
+        elif config.get('userId'):
+            # A verified address-book match can resolve contacts whose phone
+            # lookup is unavailable. Telethon keeps its access hash privately.
+            recipient = await client.get_entity(int(config['userId']))
         else:
-            result = await client(ResolvePhoneRequest(phone=config['phone']))
-            recipient = next((u for u in result.users if u.id == result.peer.user_id), None)
-        if not isinstance(recipient, User) or recipient.bot or recipient.id == me.id:
+            try:
+                result = await client(ResolvePhoneRequest(phone=config['phone'].lstrip('+')))
+                recipient = next((u for u in result.users if u.id == result.peer.user_id), None)
+            except PhoneNotOccupiedError:
+                contacts = await client(GetContactsRequest(hash=0))
+                matches = [u for u in contacts.users if (u.phone or '').lstrip('+') == config['phone'].lstrip('+')]
+                if len(matches) != 1:
+                    raise RuntimeError('No unique verified phone match in the caller contacts. No call placed.')
+                recipient = matches[0]
+        if not isinstance(recipient, User) or recipient.bot or recipient.deleted or recipient.id == me.id:
             raise RuntimeError('Select a different normal user as the private call recipient.')
         expected_phone = config.get('phone', '').lstrip('+')
         if recipient.phone and expected_phone and recipient.phone.lstrip('+') != expected_phone:
@@ -68,34 +86,77 @@ async def main():
         receipt = ROOT / '.local/telegram-call-trial-receipt.json'
         if receipt.exists():
             raise RuntimeError('A trial was already attempted. No automatic repeat call.')
-        record = {'caller': me.id, 'recipient': recipient.id, 'startedAt': datetime.now(timezone.utc).isoformat(), 'status': 'attempting'}
+        record = {'caller': me.id, 'recipient': recipient.id, 'startedAt': datetime.now(timezone.utc).isoformat(), 'status': 'attempting', 'phoneStates': [], 'mediaStates': [], 'updateRegistrations': 0}
+        metadata = ROOT / '.local/telegram-call-audio-metadata.json'
+        if metadata.exists():
+            generated = json.loads(metadata.read_text())
+            if generated.get('sha256') == hashlib.sha256(audio.read_bytes()).hexdigest():
+                record['audio'] = generated
         receipt.write_text(json.dumps(record))
+        logging.basicConfig(filename=str(ROOT / '.local/telegram-call-errors.log'), level=logging.ERROR)
+        from telethon import events
+        from telethon.tl.types import UpdatePhoneCall
+
+        async def phone_update(update):
+            if isinstance(update, UpdatePhoneCall):
+                phone = update.phone_call
+                if getattr(phone, 'participant_id', None) == recipient.id and getattr(phone, 'admin_id', None) == me.id:
+                    record['phoneStates'].append(type(phone).__name__)
+                    receipt.write_text(json.dumps(record))
+                    print('Telegram call update: ' + type(phone).__name__, flush=True)
+        client.add_event_handler(phone_update, events.Raw())
         from pytgcalls import PyTgCalls
         from pytgcalls.types import CallConfig
         from pytgcalls.types.raw import Stream, AudioStream, AudioParameters
         from ntgcalls import MediaSource
         calls = PyTgCalls(client)
+        original_connection_handler = calls._handle_connection_changed
+
+        async def media_update(chat_id, info):
+            if chat_id == recipient.id:
+                record['mediaStates'].append(info.state.name)
+                receipt.write_text(json.dumps(record))
+                print('Media connection: ' + info.state.name, flush=True)
+            await original_connection_handler(chat_id, info)
+        calls._handle_connection_changed = media_update
+        stopped = asyncio.Event()
+        updates_task = None
         try:
             await calls.start()
+            def registration(status):
+                if status == 'registered':
+                    record['updateRegistrations'] += 1
+                else:
+                    record['updateError'] = status
+                receipt.write_text(json.dumps(record))
+            updates_task = asyncio.create_task(maintain_call_updates(client, stopped, registration))
             stream = Stream(microphone=AudioStream(MediaSource.FILE, str(audio), AudioParameters(48000, 1)))
+            waiting = ROOT / '.local/telegram-call-waiting.pcm'
+            waiting.write_bytes(bytes(48000 * 2 * 90))
+            waiting_stream = Stream(microphone=AudioStream(MediaSource.FILE, str(waiting), AudioParameters(48000, 1)))
             print('Placing the one-off Telegram test call now.', flush=True)
-            await asyncio.wait_for(calls.play(recipient.id, stream, CallConfig(timeout=25)), timeout=45)
-            record['status'] = 'connected'
-            receipt.write_text(json.dumps(record))
-            print('Call connected; playing the test reminder.', flush=True)
-            await asyncio.sleep(duration + 1)
+            def connected():
+                record['status'] = 'connected'
+                receipt.write_text(json.dumps(record))
+                print('Call connected; starting the reminder from its beginning.', flush=True)
+            await play_after_connection(calls, recipient.id, waiting_stream, stream, CallConfig(timeout=45), duration, connected)
             record['status'] = 'played'
         except Exception as error:
             record['status'] = 'failed'
             record['errorType'] = type(error).__name__
             raise
         finally:
+            stopped.set()
+            if updates_task:
+                updates_task.cancel()
+                await asyncio.gather(updates_task, return_exceptions=True)
             try:
                 await asyncio.wait_for(calls.leave_call(recipient.id), timeout=10)
             except Exception:
                 pass
             record['endedAt'] = datetime.now(timezone.utc).isoformat()
             receipt.write_text(json.dumps(record))
+            calls.executor.shutdown(wait=False, cancel_futures=True)
     finally:
         await client.disconnect()
 
