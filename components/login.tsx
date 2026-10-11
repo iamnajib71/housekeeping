@@ -1,22 +1,18 @@
 'use client';
-import { useEffect, useState } from 'react';
-import { ArrowRight, House, Sparkles, CalendarDays, Camera, ShieldCheck } from 'lucide-react';
+import { useEffect,useState } from 'react';
+import { ArrowRight,House,ShieldCheck } from 'lucide-react';
 import { browserClient } from '@/lib/supabase-browser';
-export function Login({ configured }: { configured: boolean }) {
-  const [error, setError] = useState(''), [busy, setBusy] = useState(false), [checking, setChecking] = useState(configured);
-  useEffect(() => {
-    const message = new URLSearchParams(window.location.search).get('error');
-    if (message) setError(message);
-    if (!configured) return;
-    browserClient().auth.getSession().then(({ data }) => {
-      if (data.session) window.location.replace('/app');
-      else setChecking(false);
-    }).catch(() => setChecking(false));
-  }, [configured]);
-  async function login() {
-    setBusy(true); setError('');
-    try { const { error } = await browserClient().auth.signInWithOAuth({ provider: 'google', options: { redirectTo: `${window.location.origin}/auth/callback`, queryParams: { prompt: 'select_account' } } }); if (error) throw error; }
-    catch (e) { setError(e instanceof Error ? e.message : 'Could not start login.'); setBusy(false); }
-  }
-  return <main className="login-page"><div className="login-brand"><span className="brand-icon"><House size={25} /></span>housekeeping<span className="brand-period">.</span></div><div className="login-grid"><section className="login-story"><span className="eyebrow"><Sparkles size={16} /> A SHARED HOME. A SHARED EFFORT.</span><h1>A little effort.<br />A happier <em>home.</em></h1><p>Your turn, your tasks, all in one place.<br />Let’s keep the place feeling good.</p><div className="login-features"><span><CalendarDays />A fair, rotating roster</span><span><Camera />A quick photo when you’re done</span><span><ShieldCheck />Just for your household</span></div><div className="login-dates"><span><b>27 SEP</b>Najib kickoff clean</span><span><b>05 OCT</b>Monday team cleans begin</span></div></section><section className="login-card"><span className="welcome-icon"><House size={30} /></span><h2>Welcome home</h2><p>Sign in once with the Google account your household admin added. This device will remember you and open your dashboard next time.</p><button className="button primary full" onClick={login} disabled={!configured || busy || checking}><span className="google-g">G</span>{checking ? 'Checking this device…' : busy ? 'Opening Google…' : 'Continue with Google'}<ArrowRight size={18} /></button>{!configured && <div className="notice">Household login is being connected. Please contact the household admin.</div>}{error && <p className="error" role="alert">{error}</p>}<div className="private-note"><ShieldCheck size={15} />Your cleaning photos stay private. Use Log out on shared devices.</div></section></div><footer>Made for the place you call home.<span>Melbourne time · Australia</span></footer></main>;
+import { validInviteToken,type SignupMode } from '@/lib/accounts';
+export function Login({configured,signup=false,invited=false}:{configured:boolean;signup?:boolean;invited?:boolean}){
+ const [error,setError]=useState(''),[busy,setBusy]=useState(false),[checking,setChecking]=useState(configured),[mode,setMode]=useState<SignupMode>('admin');
+ function destination(){const token=new URLSearchParams(window.location.search).get('token');return invited&&validInviteToken(token)?'/welcome?invite='+token:signup?'/welcome?mode='+mode:'/app';}
+ useEffect(()=>{const message=new URLSearchParams(window.location.search).get('error');if(message)setError(message);if(!configured)return;browserClient().auth.getSession().then(({data})=>{if(data.session&&!signup)window.location.replace(destination());else setChecking(false);}).catch(()=>setChecking(false));},[configured]);
+ async function login(){setBusy(true);setError('');try{
+  const client=browserClient(),{data}=await client.auth.getSession();if(data.session){window.location.assign(destination());return;}
+  const callback=new URL('/auth/callback',window.location.origin),token=invited?new URLSearchParams(window.location.search).get('token'):null;
+  if(invited&&!validInviteToken(token))throw new Error('This invitation is invalid. Ask your admin for a new link.');
+  const intent=await fetch('/api/auth-intent',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:signup?mode:null,invite:token})});if(!intent.ok)throw new Error((await intent.json()).error||'Could not prepare sign in.');
+  const {error}=await client.auth.signInWithOAuth({provider:'google',options:{redirectTo:callback.toString(),queryParams:{prompt:'select_account'}}});if(error)throw error;
+ }catch(e){setError((e as Error).message);setBusy(false);}}
+ return <main className="login-page"><a className="login-brand" href="/"><span className="brand-icon"><House size={25}/></span>housekeeping.</a><div className="login-grid"><section className="login-story"><span className="eyebrow">A SHARED HOME. A SHARED EFFORT.</span><h1>A little effort.<br/>A happier <em>home.</em></h1><p>Manage your properties or share the cleaning.<br/>A clear plan for everyone.</p><div className="login-features"><span>Fair cleaning turns</span><span>Photo proof and useful feedback</span><span>Separate, private households</span></div></section><section className="login-card"><span className="welcome-icon"><House size={30}/></span><h2>{signup?'Create your account':invited?'Join your home':'Welcome back'}</h2><p>{signup?'Choose how you’ll use Housekeeping. Your first property starts empty; we’ll guide you through setup.':invited?'Use the Google email your admin invited to join their home as a tenant.':'Sign in with Google. This device remembers you and opens your dashboard next time.'}</p>{signup&&<fieldset className="signup-options"><legend>I want to…</legend><label><input type="radio" name="mode" checked={mode==='admin'} onChange={()=>setMode('admin')}/><span><b>Manage properties</b><small>Admin · agents, managers and landlords</small></span></label><label><input type="radio" name="mode" checked={mode==='admin_tenant'} onChange={()=>setMode('admin_tenant')}/><span><b>Manage my shared home</b><small>Admin + tenant · take cleaning turns too</small></span></label></fieldset>}<button className="button primary full" onClick={login} disabled={!configured||busy||checking}><span className="google-g">G</span>{checking?'Checking this device…':busy?'Opening Google…':signup?'Sign up with Google':'Continue with Google'}<ArrowRight size={18}/></button>{error&&<p className="error" role="alert">{error}</p>}{!configured&&<p className="notice">Login is not connected yet.</p>}<p className="account-link">{signup?<a href="/">Already have an account? Log in</a>:<a href="/signup">New admin? Create an account</a>}</p>{!signup&&!invited&&<small>Tenants: use the invitation link your admin shares.</small>}<div className="private-note"><ShieldCheck size={15}/>Use Log out on shared devices.</div></section></div><footer>Made for the place you call home.<span>Melbourne time · Australia</span></footer></main>;
 }

@@ -84,6 +84,7 @@ export async function POST(request:Request) {
     if(error)throw error;if(!trial||trial.status!=='ready')throw new ApiError('This walkthrough draft is unavailable.',404);
     const plan=validatePlan(body.plan,trial.frame_times.length);
     if(body.action==='apply'){
+      if(plan.areas.some(a=>a.confidence!=='high')&&body.confirmUncertain!==true)throw new ApiError('Confirm the uncertain area detections before applying this setup.');
       const checklists=planChecklists(plan);
       const {data:changed,error}=await db.rpc('apply_walkthrough',{p_trial:trial.id,p_member:member.id,p_plan:plan,p_daily:checklists.daily,p_weekly:checklists.weekly,p_areas:checklists.areas});
       if(error)throw error;return ok({ok:true,changed});

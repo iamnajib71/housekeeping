@@ -2,7 +2,7 @@ import { ApiError,bodyJson,checkOrigin,failure,getAssignment,ok,requireMember } 
 export const maxDuration=60;
 export async function POST(request:Request,{params}:{params:Promise<{id:string}>}){
  try{
-  checkOrigin(request);const {db,member}=await requireMember();const a=await getAssignment(db,(await params).id);
+  checkOrigin(request);const {db,member}=await requireMember();const a=await getAssignment(db,(await params).id,member.household_id);
   if(!a.member_ids.includes(member.id))throw new ApiError('You can only upload proof for your assigned clean.',403);
   if(Number(request.headers.get('content-length')||0)>1.1*1024*1024)throw new ApiError('Upload one compressed photo at a time.',413);
   const form=await request.formData(),file=form.get('photo');
@@ -18,7 +18,7 @@ export async function POST(request:Request,{params}:{params:Promise<{id:string}>
 }
 export async function DELETE(request:Request,{params}:{params:Promise<{id:string}>}){
  try{
-  checkOrigin(request);const {db,member}=await requireMember();const a=await getAssignment(db,(await params).id);const {photoId}=await bodyJson(request);
+  checkOrigin(request);const {db,member}=await requireMember();const a=await getAssignment(db,(await params).id,member.household_id);const {photoId}=await bodyJson(request);
   const {data:photo,error:retireError}=await db.rpc('retire_photo',{p_assignment:a.id,p_member:member.id,p_photo:photoId});if(retireError)throw new ApiError(retireError.message);
   const {error:removeError}=await db.storage.from('cleaning-proof').remove([photo.path]);if(removeError)throw removeError;
   const {error}=await db.from('photos').update({deleted_at:new Date().toISOString()}).eq('id',photo.id);if(error)throw error;

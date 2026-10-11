@@ -19,6 +19,7 @@ let settings={...defaultSettings,cleaning_areas:['Kitchen','Oven','Stove','Toile
 let plan:CleaningPlan=lightCleaningRoutine({areas:[{name:'Kitchen',fixtures:['Sink','Stove'],daily:['Wipe benches'],weekly:['Clean the stovetop'],frameIndex:null,seconds:.4,confidence:'high'}],unseenAreas:['Bathroom'],notes:'Confirm areas not shown.'});
 let trial:any=null,saves=0,applies=0,uploadSize=0,offset=0,uploadUrl='',providerFile:any=null;
 await page.route('**/api/dashboard',r=>r.fulfill({json:{me:testMembers[0],members:testMembers,settings,assignments:[],submissions:[],today:'2026-10-05'}}));
+await page.route('**/api/account',r=>r.fulfill({json:{email:'test@example.invalid',homes:[{id:1,name:'Our shared home',address:''}]}}));
 await page.route('**/api/onboarding/*/upload',async route=>{
   try{
     const bytes=route.request().postDataBuffer()!;expect(bytes.length).toBeLessThanOrEqual(VIDEO_CHUNK_BYTES);expect(Number(route.request().headers()['x-upload-offset'])).toBe(offset);

@@ -1,13 +1,15 @@
-import { ApiError,bodyJson,checkOrigin,failure,ok,requireMember } from '@/lib/server';
+import { ApiError,bodyJson,checkOrigin,failure,ok,requireMember,getAssignment } from '@/lib/server';
 export async function POST(request:Request){
  try{
   checkOrigin(request);const {db,member}=await requireMember(true);const body=await bodyJson(request);
+  async function ownSubmission(id:string){const {data,error}=await db.from('submissions').select('assignment_id').eq('id',id).maybeSingle();if(error)throw error;if(!data)throw new ApiError('Submission not found.',404);await getAssignment(db,data.assignment_id,member.household_id);}
   if(body.action==='member'){
    if(typeof body.name!=='string'||!body.name.trim()||body.name.trim().length>40)throw new ApiError('Enter a name of up to 40 characters.');
    const email=typeof body.email==='string'?body.email.trim().toLowerCase():null;
    if(email&&(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||email.length>254))throw new ApiError('Enter a valid email address.');
+   const {data:target}=await db.from('members').select('user_id,email').eq('id',body.id).eq('household_id',member.household_id).maybeSingle();if(target?.user_id&&email!==target.email)throw new ApiError('An accepted tenant’s login email cannot be changed.');
    if(body.id===member.id&&email!==member.email)throw new ApiError('Your own login email cannot be changed here.');
-   const {data,error}=await db.from('members').update({name:body.name.trim(),email}).eq('id',body.id).select('id').single();
+   const {data,error}=await db.from('members').update({name:body.name.trim(),email}).eq('id',body.id).eq('household_id',member.household_id).select('id').single();
    if(error)throw new ApiError(error.code==='23505'?'That email belongs to another housemate.':'Could not update this housemate.');return ok(data);
   }
   if(body.action==='settings'){
@@ -16,19 +18,24 @@ export async function POST(request:Request){
    for(const key of ['evening_hour','morning_hour','deadline_hour'])if(!Number.isInteger(s[key])||s[key]<0||s[key]>23)throw new ApiError('Choose a valid reminder hour.');
    if(s.morning_hour>=s.deadline_hour)throw new ApiError('The morning reminder must be before the deadline.');
    if(typeof s.reminders_enabled!=='boolean')throw new ApiError('Invalid reminder preference.');
-   const {error}=await db.rpc('save_settings',{p_daily:[...new Set(s.daily_tasks.map((t:string)=>t.trim()))],p_weekly:[...new Set(s.weekly_tasks.map((t:string)=>t.trim()))],p_evening:s.evening_hour,p_morning:s.morning_hour,p_deadline:s.deadline_hour,p_enabled:s.reminders_enabled});if(error)throw error;return ok({ok:true});
+   const {error}=await db.rpc('save_household_settings',{p_household:member.household_id,p_daily:[...new Set(s.daily_tasks.map((t:string)=>t.trim()))],p_weekly:[...new Set(s.weekly_tasks.map((t:string)=>t.trim()))],p_evening:s.evening_hour,p_morning:s.morning_hour,p_deadline:s.deadline_hour,p_enabled:s.reminders_enabled});if(error)throw error;return ok({ok:true});
   }
   if(body.action==='review_tasks'){
+   await ownSubmission(body.id);
    if(typeof body.id!=='string'||!Array.isArray(body.feedback)||body.feedback.length<1||body.feedback.length>30||!body.feedback.every((f: {task?:unknown;status?:unknown;note?:unknown})=>f&&typeof f.task==='string'&&['approved','rework'].includes(String(f.status))&&typeof f.note==='string'&&f.note.length<=500&&(f.status!=='rework'||f.note.trim())))throw new ApiError('Choose a result for each task and enter a reason for every task needing fixes.');
    const {error}=await db.rpc('review_tasks',{p_submission:body.id,p_feedback:body.feedback});if(error)throw new ApiError(error.message);
    return ok({ok:true,emailQueued:body.feedback.some((f:{status:string})=>f.status==='rework')});
   }
   if(body.action==='review'){
+   await ownSubmission(body.id);
    if(!['approved','rework'].includes(body.status)||typeof body.note!=='string'||body.note.length>1000||(body.status==='rework'&&!body.note.trim()))throw new ApiError('Provide a valid review and a rejection reason.');
    const {error}=await db.rpc('review_clean',{p_submission:body.id,p_status:body.status,p_note:body.note.trim()});if(error)throw new ApiError(error.message);
    return ok({ok:true,emailQueued:body.status==='rework'});
   }
   if(body.action==='reassign'){
+   await getAssignment(db,body.id,member.household_id);
+   const {data:eligible}=await db.from('members').select('id').eq('household_id',member.household_id).eq('participates',true).in('id',Array.isArray(body.memberIds)?body.memberIds:[]);
+   if(eligible?.length!==body.memberIds?.length)throw new ApiError('Choose tenants from this home.');
    if(!Array.isArray(body.memberIds)||body.memberIds.length>2)throw new ApiError('Choose one or two housemates.');
    const {error}=await db.rpc('reassign_clean',{p_assignment:body.id,p_members:body.memberIds});if(error)throw new ApiError(error.message);return ok({ok:true});
   }

@@ -61,6 +61,7 @@ export function validateVideoPlan(value: unknown, duration = MAX_WALKTHROUGH_SEC
       removed = true;
       return {...area, seconds:null, confidence:'low'};
     }
+    if(area && (area.seconds===undefined||area.seconds===null))return {...area,seconds:null,confidence:'low'};
     return area;
   }) : candidate?.areas;
   const plan = validatePlan({...candidate, areas}, 0);

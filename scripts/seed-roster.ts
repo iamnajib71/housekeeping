@@ -2,7 +2,7 @@ import {createClient} from '@supabase/supabase-js';
 import {generateSchedule,addDays,localClock} from '../lib/schedule';
 async function main() {
 const db=createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!,process.env.SUPABASE_SECRET_KEY!,{auth:{persistSession:false}});
-const {data:members,error}=await db.from('members').select('*').order('position');if(error)throw error;
+const {data:members,error}=await db.from('members').select('*').eq('household_id',1).order('position');if(error)throw error;
 const {data:settings,error:se}=await db.from('household_settings').select('*').eq('id',1).single();if(se)throw se;
 const rows=generateSchedule(members!,settings,settings.daily_start,addDays(settings.daily_start,110));
 const {error:saveError}=await db.from('assignments').upsert(rows,{onConflict:'id',ignoreDuplicates:true});if(saveError)throw saveError;

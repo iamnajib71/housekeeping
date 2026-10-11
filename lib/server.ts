@@ -17,13 +17,21 @@ export async function sessionClient() {
  if(!url||!key) throw new ApiError('Login is not connected yet.',503);
  return createServerClient(url,key,{cookies:{getAll:()=>jar.getAll(),setAll:values=>{values.forEach(({name,value,options})=>jar.set(name,value,options));}}});
 }
-export async function requireMember(admin=false) {
+export async function requireUser() {
  const auth=await sessionClient();const {data:{user},error}=await auth.auth.getUser();
- if(error||!user?.email||!user.email_confirmed_at) throw new ApiError('Please sign in with your approved Google account.',401);
- const db=database();const {data,error:queryError}=await db.from('members').select('*').eq('email',user.email.toLowerCase()).maybeSingle();
- if(queryError) throw queryError;
- if(!data) throw new ApiError('This Google account is not on the household roster. Ask Najib to add your email.',403);
- const member=data as Member;
+ if(error||!user?.email||!user.email_confirmed_at) throw new ApiError('Please sign in with Google.',401);
+ return {db:database(),user};
+}
+export async function userMemberships(db:ReturnType<typeof database>,user:{id:string;email?:string}) {
+ const {data,error}=await db.from('members').select('*').eq('email',user.email!.toLowerCase()).order('household_id');
+ if(error)throw error;
+ return (data||[]).filter(m=>!m.user_id||m.user_id===user.id) as Member[];
+}
+export async function requireMember(admin=false) {
+ const {db,user}=await requireUser(),members=await userMemberships(db,user);
+ const selected=Number((await cookies()).get('household')?.value);
+ const member=members.find(m=>m.household_id===selected)||members[0];
+ if(!member)throw new ApiError('Create a home or accept your tenant invitation to get started.',403);
  if(admin&&member.role!=='admin') throw new ApiError('Only the household admin can do this.',403);
  return {db,member,user};
 }
@@ -41,19 +49,19 @@ export async function bodyJson(request:Request) {
  const text=await request.text();if(text.length>20000) throw new ApiError('Request is too large.',413);
  try{return JSON.parse(text);}catch{throw new ApiError('Invalid request.');}
 }
-export async function getSettings(db=database()):Promise<Settings>{const {data,error}=await db.from('household_settings').select('*').eq('id',1).single();if(error)throw error;return data;}
-export async function getMembers(db=database()):Promise<Member[]>{const {data,error}=await db.from('members').select('*').order('position');if(error)throw error;return data;}
+export async function getSettings(db=database(),household=1):Promise<Settings>{const {data,error}=await db.from('household_settings').select('*').eq('id',household).single();if(error)throw error;return data;}
+export async function getMembers(db=database(),household=1):Promise<Member[]>{const {data,error}=await db.from('members').select('*').eq('household_id',household).order('position');if(error)throw error;return data;}
 export async function ensureSchedule(db=database(),settings?:Settings,members?:Member[]) {
  settings ||= await getSettings(db);members ||= await getMembers(db);
+ if(!settings.daily_tasks.length||!settings.weekly_tasks.length||!members.some(m=>m.participates!==false))return;
  const today=localClock().date,end=addDays(today<settings.daily_start?settings.daily_start:today,90);
- const {data:latest,error}=await db.from('assignments').select('date').order('date',{ascending:false}).limit(1);if(error)throw error;
- const start=latest?.[0]?addDays(latest[0].date,1):settings.daily_start;if(start>end)return;
+ const start=today>settings.daily_start?today:settings.daily_start;if(start>end)return;
  const rows=generateSchedule(members,settings,start,end);
  for(let i=0;i<rows.length;i+=250){const {error}=await db.from('assignments').upsert(rows.slice(i,i+250),{onConflict:'id',ignoreDuplicates:true});if(error)throw error;}
 }
-export async function getAssignment(db:ReturnType<typeof database>,id:string):Promise<Assignment>{
- if(!/^(daily|weekly)-\d{4}-\d{2}-\d{2}$/.test(id))throw new ApiError('Assignment not found.',404);
- const {data,error}=await db.from('assignments').select('*').eq('id',id).maybeSingle();if(error)throw error;if(!data)throw new ApiError('Assignment not found.',404);return data;
+export async function getAssignment(db:ReturnType<typeof database>,id:string,household=1):Promise<Assignment>{
+ if(!/^(?:\d+-)?(daily|weekly)-\d{4}-\d{2}-\d{2}$/.test(id))throw new ApiError('Assignment not found.',404);
+ const {data,error}=await db.from('assignments').select('*').eq('id',id).eq('household_id',household).maybeSingle();if(error)throw error;if(!data)throw new ApiError('Assignment not found.',404);return data;
 }
 export function ok(value:unknown){return NextResponse.json(value,{headers:{'Cache-Control':'private, no-store'}});}
 export function failure(error:unknown){

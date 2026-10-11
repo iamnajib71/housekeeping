@@ -6,7 +6,7 @@ export function reminderEmail(a: Assignment, member: Member, members: Member[], 
   const label = a.kind === 'daily' ? 'daily reset' : 'Monday deep clean';
   const when = kind === 'tomorrow' ? 'tomorrow' : kind === 'today' ? 'today' : 'is overdue';
   const partner = a.member_ids.filter(id => id !== member.id).map(id => members.find(m => m.id === id)?.name).join(' & ');
-  const link = appUrl.replace(/\/$/, '') + '/app?assignment=' + encodeURIComponent(a.id);
+  const link = appUrl.replace(/\/$/, '') + '/app?assignment=' + encodeURIComponent(a.id)+'&home='+(a.household_id||1);
   const rejected = kind === 'rework';
   const tasks = a.kind === 'weekly' ? weeklyTaskPlan(a, assignments, submissions)[member.id] || [] : a.tasks;
   const body = rejected

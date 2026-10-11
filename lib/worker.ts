@@ -1,5 +1,5 @@
 import 'server-only';
-import { database,ensureSchedule,getMembers,getSettings } from './server';
+import { database,ensureSchedule } from './server';
 import { addDays,localClock,reminderTypes } from './schedule';
 import type { Assignment,Submission } from './types';
 import { reminderEmail } from './reminder-email';
@@ -21,35 +21,39 @@ export async function runMaintenance(db=database()) {
  return photos?.length||0;
 }
 export async function pollEmails(limit:number) {
- const db=database(),settings=await getSettings(db),members=await getMembers(db);
- await ensureSchedule(db,settings,members);const deleted=await runMaintenance(db);
+ const db=database();
+ const {data:allSettings,error:settingsError}=await db.from('household_settings').select('*');if(settingsError)throw settingsError;
+ const {data:members,error:memberError}=await db.from('members').select('*');if(memberError)throw memberError;
+ for(const settings of allSettings||[])await ensureSchedule(db,settings,(members||[]).filter(m=>m.household_id===settings.id));
+ const deleted=await runMaintenance(db);
  const clock=localClock();
  const {data:assignments,error}=await db.from('assignments').select('*').gte('date',addDays(clock.date,-1)).lte('date',addDays(clock.date,1));if(error)throw error;
  const {data:submissions,error:subError}=await db.from('submissions').select('*').in('assignment_id',(assignments||[]).map(a=>a.id));if(subError)throw subError;
  const jobs=[];
  for(const a of (assignments||[]) as Assignment[])for(const memberId of a.member_ids){
-  if(!members.find(m=>m.id===memberId)?.email)continue;
+  const settings=allSettings?.find(s=>s.id===a.household_id);if(!settings||!members?.find(m=>m.id===memberId)?.email)continue;
   const sub=(submissions||[]).find(s=>s.assignment_id===a.id&&s.member_id===memberId);
   for(const kind of reminderTypes(a.date,clock.date,clock.hour,settings,Boolean(sub&&['submitted','approved'].includes(sub.status))))jobs.push({dedupe_key:a.id+':'+memberId+':'+kind,member_id:memberId,assignment_id:a.id,kind});
  }
  if(jobs.length){const {error}=await db.from('email_jobs').upsert(jobs,{onConflict:'dedupe_key',ignoreDuplicates:true});if(error)throw error;}
- if(!settings.reminders_enabled){const {error}=await db.from('email_jobs').update({status:'cancelled'}).in('status',['pending','leased']);if(error)throw error;await db.from('worker_health').update({last_run:new Date().toISOString(),last_error:null}).eq('id',1);return {jobs:[],deleted};}
  const {data:claimed,error:claimError}=await db.rpc('claim_emails',{p_limit:limit});if(claimError)throw claimError;
  const messages=[];
- let weeklyHistory:Assignment[]|undefined,weeklySubmissions:Submission[]=[];
+ const histories=new Map<number,{assignments:Assignment[];submissions:Submission[]}>();
  for(const job of claimed||[]){
-  const member=members.find(m=>m.id===job.member_id);
+  const member=members?.find(m=>m.id===job.member_id);
   const {data:a,error}=await db.from('assignments').select('*').eq('id',job.assignment_id).single();if(error)throw error;
   const {data:sub,error:readError}=await db.from('submissions').select('*').eq('assignment_id',a.id).eq('member_id',job.member_id).maybeSingle();if(readError)throw readError;
   const done=sub&&['submitted','approved'].includes(sub.status);
   const stale=job.kind==='tomorrow'?a.date!==addDays(clock.date,1):job.kind==='today'?a.date!==clock.date:job.kind==='overdue'?a.date<addDays(clock.date,-1)||a.date>clock.date:sub?.status!=='rework';
-  if(!member?.email||!a.member_ids.includes(job.member_id)||done||stale){const {error}=await db.from('email_jobs').update({status:'cancelled'}).eq('id',job.id);if(error)throw error;continue;}
-  if(a.kind==='weekly'&&job.kind!=='rework'&&!weeklyHistory){
-   const {data:history,error}=await db.from('assignments').select('*').eq('kind','weekly').gte('date',addDays(clock.date,-365)).order('date');if(error)throw error;
-   weeklyHistory=history||[];
-   if(weeklyHistory.length){const {data,error}=await db.from('submissions').select('*').in('assignment_id',weeklyHistory.map(item=>item.id));if(error)throw error;weeklySubmissions=data||[];}
+  if(!allSettings?.find(s=>s.id===a.household_id)?.reminders_enabled||!member?.email||member.household_id!==a.household_id||!a.member_ids.includes(job.member_id)||done||stale){const {error}=await db.from('email_jobs').update({status:'cancelled'}).eq('id',job.id);if(error)throw error;continue;}
+  if(a.kind==='weekly'&&job.kind!=='rework'&&!histories.has(a.household_id)){
+   const {data:history,error}=await db.from('assignments').select('*').eq('household_id',a.household_id).eq('kind','weekly').gte('date',addDays(clock.date,-365)).order('date');if(error)throw error;
+   let prior:Submission[]=[];
+   if(history?.length){const {data,error}=await db.from('submissions').select('*').in('assignment_id',history.map(item=>item.id));if(error)throw error;prior=data||[];}
+   histories.set(a.household_id,{assignments:history||[],submissions:prior});
   }
-  messages.push({id:job.id,leaseToken:job.lease_token,...reminderEmail(a,member,members,job.kind,sub||undefined,weeklyHistory||[],weeklySubmissions,process.env.APP_URL||'')});
+  const history=histories.get(a.household_id);
+  messages.push({id:job.id,leaseToken:job.lease_token,...reminderEmail(a,member,(members||[]).filter(m=>m.household_id===a.household_id),job.kind,sub||undefined,history?.assignments||[],history?.submissions||[],process.env.APP_URL||'')});
  }
  const {error:healthError}=await db.from('worker_health').update({last_run:new Date().toISOString(),last_error:null}).eq('id',1);if(healthError)throw healthError;
  return {jobs:messages,deleted};

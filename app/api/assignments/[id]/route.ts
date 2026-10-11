@@ -1,7 +1,7 @@
 import { ApiError,bodyJson,checkOrigin,failure,getAssignment,ok,requireMember } from '@/lib/server';
 export async function GET(_request:Request,{params}:{params:Promise<{id:string}>}){
  try{
-  const {db,member}=await requireMember();const a=await getAssignment(db,(await params).id);
+  const {db,member}=await requireMember();const a=await getAssignment(db,(await params).id,member.household_id);
   const maySeeDrafts=member.role==='admin'||a.member_ids.includes(member.id);
   let submissionQuery=db.from('submissions').select('*').eq('assignment_id',a.id);
   if(!maySeeDrafts)submissionQuery=submissionQuery.neq('status','draft');
@@ -20,7 +20,7 @@ export async function GET(_request:Request,{params}:{params:Promise<{id:string}>
 }
 export async function POST(request:Request,{params}:{params:Promise<{id:string}>}){
  try{
-  checkOrigin(request);const {db,member}=await requireMember();const a=await getAssignment(db,(await params).id);const body=await bodyJson(request);
+  checkOrigin(request);const {db,member}=await requireMember();const a=await getAssignment(db,(await params).id,member.household_id);const body=await bodyJson(request);
   if(!a.member_ids.includes(member.id))throw new ApiError('You can only submit your own assigned clean.',403);
   if(body.action==='start'){
    const {data,error}=await db.rpc('start_clean',{p_assignment:a.id,p_member:member.id});if(error)throw new ApiError(error.message);

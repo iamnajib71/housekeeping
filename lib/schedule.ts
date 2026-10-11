@@ -18,7 +18,16 @@ export function mondayOf(date: string): string { const day = new Date(date + 'T1
 // A round-robin matching occupies three Mondays. Every member works once per
 // three-week block, with every other member exactly once over the 15-week cycle.
 export function pairCycle(ids: string[]): string[][] {
-  if (ids.length !== 6) throw new Error('The household rotation requires exactly six members.');
+  if(ids.length<2)return [];
+  if(ids.length!==6){
+    const ring:(string|null)[]=[...ids];if(ring.length%2)ring.push(null);
+    const pairs:string[][]=[];
+    for(let round=0;round<ring.length-1;round++){
+      for(let i=0;i<ring.length/2;i++){const a=ring[i],b=ring[ring.length-1-i];if(a&&b)pairs.push([a,b]);}
+      ring.splice(1,0,ring.pop()!);
+    }
+    return pairs;
+  }
   const ring = [...ids], pairs: string[][] = [];
   for (let round = 0; round < 5; round++) {
     const next = [0, 1, 2].map(i => [ring[i], ring[5 - i]]);
@@ -31,24 +40,29 @@ export function pairCycle(ids: string[]): string[][] {
   return pairs;
 }
 export function generateSchedule(members: Member[], settings: Settings, from: string, to: string): Assignment[] {
-  const ids = [...members].sort((a, b) => a.position - b.position).map(m => m.id);
+  const ids = [...members].filter(m=>m.participates!==false).sort((a, b) => a.position - b.position).map(m => m.id);
+  if(!ids.length||!settings.daily_tasks.length||!settings.weekly_tasks.length)return [];
   const pairs = pairCycle(ids);
   const result: Assignment[] = [];
   for (let date = from; date <= to; date = addDays(date, 1)) {
     const day = new Date(date + 'T12:00:00Z').getUTCDay();
     let kind: Kind, assigned: string[];
     if (day === 1 && date >= settings.weekly_start) {
-      kind = 'weekly'; assigned = pairs[Math.floor(dayDifference(date, settings.weekly_start) / 7) % 15];
+      if(!pairs.length)continue;
+      kind = 'weekly'; assigned = pairs[Math.floor(dayDifference(date, settings.weekly_start) / 7) % pairs.length];
     } else if (day !== 1 && date >= settings.daily_start) {
       kind = 'daily';
       if (date === settings.daily_start) assigned = [ids[0]];
       else {
         const week = Math.floor(dayDifference(mondayOf(date), mondayOf(settings.daily_start)) / 7);
         const slot = day === 0 ? 5 : day - 2;
-        assigned = [ids[((slot - week) % 6 + 6) % 6]];
+        const startDay=new Date(settings.daily_start+'T12:00:00Z').getUTCDay(),startSlot=startDay===0?5:Math.max(0,startDay-2);
+        const turn=week*6+slot-startSlot;
+        const index=settings.id===1&&ids.length===6?((slot-week)%6+6)%6:(turn%ids.length+Math.floor(turn/ids.length));
+        assigned = [ids[((index%ids.length)+ids.length)%ids.length]];
       }
     } else continue;
-    result.push({ id: `${kind}-${date}`, date, kind, member_ids: assigned, tasks: kind === 'daily' ? dailyTasksForDate(settings.daily_tasks, date) : settings.weekly_tasks });
+    result.push({ id: `${settings.id===1?'':settings.id+'-'}${kind}-${date}`, ...(settings.id!==1?{household_id:settings.id}:{}), date, kind, member_ids: assigned, tasks: kind === 'daily' ? (settings.council_bins_enabled===false?[...settings.daily_tasks]:dailyTasksForDate(settings.daily_tasks, date)) : settings.weekly_tasks });
   }
   return result;
 }
@@ -85,18 +99,30 @@ export function weeklyTaskPlan(a: Assignment, assignments: Assignment[], submiss
   const [first, second] = a.member_ids;
   const limits: Record<string, number> = { [first]: Math.ceil(a.tasks.length / 2), [second]: Math.floor(a.tasks.length / 2) };
   const plan: Record<string, string[]> = { [first]: [], [second]: [] };
-  a.tasks.forEach((task, taskIndex) => {
+  const effort:Record<string,number>={[first]:0,[second]:0};
+  (a.legacy_task_split?[...a.tasks]:[...a.tasks].sort((left,right)=>taskEffort(right)-taskEffort(left))).forEach((task, taskIndex) => {
     const candidates = [first, second].filter(id => plan[id].length < limits[id]);
     const chosen = candidates.sort((left, right) => {
       const l = stats.get(`${left}\u0000${areaKey(task)}`), r = stats.get(`${right}\u0000${areaKey(task)}`);
       if ((l?.last || '') !== (r?.last || '')) return (l?.last || '').localeCompare(r?.last || '');
+      if(!a.legacy_task_split&&Math.abs(effort[left]-effort[right])>=taskEffort(task))return effort[left]-effort[right];
       if ((l?.count || 0) !== (r?.count || 0)) return (l?.count || 0) - (r?.count || 0);
       if (plan[left].length !== plan[right].length) return plan[left].length - plan[right].length;
       return taskIndex % 2 === 0 ? (left === first ? -1 : 1) : (left === second ? -1 : 1);
     })[0];
     plan[chosen].push(task);
+    effort[chosen]+=taskEffort(task);
   });
+  for(const id of [first,second])plan[id]=a.tasks.filter(task=>plan[id].includes(task));
   return plan;
+}
+// Relative workload estimates, not measurements of actual cleaning time.
+export function taskEffort(task:string):number{
+ const text=task.toLowerCase();
+ if(/oven|shower|bathtub|bathroom/.test(text))return 4;
+ if(/toilet|kitchen|mop|windows|laundry/.test(text))return 3;
+ if(/vacuum|stove|floor/.test(text))return 2;
+ return 1;
 }
 export function reminderTypes(date: string, today: string, hour: number, settings: Settings, complete: boolean): string[] {
   if (!settings.reminders_enabled || complete) return [];
