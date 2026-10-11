@@ -19,18 +19,30 @@ This is a setup option, not an enabled app feature yet.
 
 Only the sender needs the gateway app; recipients receive ordinary SMS. This is not enabled simply by owning an Android phone. No phone numbers or TextBee credentials have been collected by the current app.
 
-## Recommended next step: web push
+## Web push and Home Screen setup
 
-This is a proposed feature, not an existing Enable notifications button.
+The app includes a compact **Phone setup** card with **Add app**, **Enable**, and **Later**. It appears on entry; choosing Later defers it for seven days. The small Phone setup button reopens it anytime. Browser installation and notification permissions are requested only after the person taps a button.
 
-The tenant experience after implementation:
+The tenant experience:
 
 1. Open the live app and log in.
-2. Tap **Enable notifications** and accept the browser permission.
+2. Tap **Add app** if wanted, then **Enable** and accept the browser permission.
 3. At the deadline, receive an alert such as “Your cleaning proof is still missing”. Tap it to open the assigned task.
 
 On Android, compatible browsers support web push. On iOS/iPadOS 16.4 or later, add the app to the Home Screen and grant permission from that installed web app; see [Apple's WebKit documentation](https://webkit.org/blog/13966/webkit-features-in-safari-16-4/). [The Push API](https://developer.mozilla.org/en-US/docs/Web/API/Push_API) can deliver notifications when the app is not open. Internet connectivity, notification permission and device/browser policies affect delivery.
 
-Implementation would add a service worker, an explicit opt-in button, and private browser subscriptions bound to the authenticated user. Use standard Web Push with VAPID keys on the server, a separate idempotent push queue triggered by the existing cloud scheduler, permission/revocation controls and cleanup of expired subscriptions. Clicking an alert must still require normal login and property membership. Avoid storing private dashboard responses in the service-worker cache. Keep email working independently when push is denied or unavailable.
+Use **Send test** after enabling to check actual delivery on your phone. **Turn off** removes this device's subscription. Signing out also disconnects the device, preventing reminders for the previous account on a shared phone. Blocked permissions must be changed in browser/phone settings; the app cannot override them.
+
+Subscriptions are private, bound to the authenticated account, and accessible only through server routes. Standard Web Push uses server VAPID keys and a separate queue, polled by the existing Gmail Apps Script. No new Apps Script installation or Firebase account is needed. The original property's 22:00 Melbourne deadline controls eligibility; arrival depends on the 15-minute trigger, network and phone settings. Each missing assignment/member/device combination is queued once, checked again before sending, and retried up to three attempts. An expired device is removed. A provider acceptance is not proof that a person read the alert.
+
+Clicking an alert still requires normal login and property membership. The service worker does not cache private dashboards, authentication, API data or proof photos. Gmail runs independently if push fails, is denied or is unavailable. Queue records are pruned after 30 days; submitted cleaning history is unaffected.
 
 Standard Web Push avoids a paid SMS provider. Firebase Cloud Messaging is another no-cost messaging option according to [Firebase pricing](https://firebase.google.com/pricing), though other Firebase products have their own quotas and costs. A separate Firebase account is unnecessary if the app uses standard Web Push directly.
+
+## Telegram and WhatsApp trials
+
+A manual Telegram voice-message trial is available in `scripts/telegram-voice-trial.mts`; it is not enabled in the nightly scheduler. Create a bot through BotFather, store its token privately, and have the test recipient Start the bot. Discover private Start messages with `npx tsx scripts/telegram-voice-trial.mts --discover`; select the intended recipient's chat ID in `.env.local`, then run the script with an OGG/Opus, MP3 or M4A recording. The current script uploads an OGG/Opus recording. It sends once, keeps its receipt in ignored `.local`, and never writes tokens or contact IDs to GitHub. A static spoken reminder can be reused without paying for speech generation on every delivery. See [Telegram sendVoice](https://core.telegram.org/bots/api#sendvoice).
+
+For a later cloud integration, upload the approved generic recording once, use Telegram's returned file ID, link each consenting recipient to their verified app account, and add a separate delivery queue. Bots cannot initiate a private voice call: [phone.requestCall](https://core.telegram.org/method/phone.requestCall) is available only to user accounts. [NTgCalls](https://github.com/pytgcalls/ntgcalls) supports private-call media, but a ringing-call trial needs a normal caller account, a different recipient account and a separate media worker. Suitable free cloud hosting has not been verified. Calling is parked until caller and recipient details are provided.
+
+WhatsApp's [Business Calling API](https://whatsappbusiness.com/blog/whatsapp-business-calling-api/) supports business-initiated calls after recipient permission. Its [Business Platform pricing](https://whatsappbusiness.com/products/platform-pricing/) has paid messaging categories and conditional free windows. Do not assume unattended nightly messages or outbound calls are free. No WhatsApp integration or calling service is enabled.

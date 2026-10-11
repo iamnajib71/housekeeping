@@ -7,7 +7,7 @@ const config: NextConfig = {
       { key: 'Referrer-Policy', value: 'same-origin' },
       { key: 'X-Frame-Options', value: 'DENY' },
       { key: 'Permissions-Policy', value: 'camera=(self), microphone=(), geolocation=()' }
-    ] }];
+    ] },{source:'/sw.js',headers:[{key:'Cache-Control',value:'no-cache, no-store, must-revalidate'},{key:'Service-Worker-Allowed',value:'/'}]}];
   }
 };
 export default config;

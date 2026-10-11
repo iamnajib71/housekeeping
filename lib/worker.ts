@@ -2,6 +2,7 @@ import 'server-only';
 import { database,ensureSchedule } from './server';
 import { addDays,localClock } from './schedule';
 import { memberReminderTypes,reminderIsCurrent } from './reminders';
+import { runPushReminders } from './push-worker';
 import type { Assignment,Submission } from './types';
 import { reminderEmail } from './reminder-email';
 import { deleteVideoFile } from './cloud-video';
@@ -54,6 +55,9 @@ export async function pollEmails(limit:number) {
   const history=histories.get(a.household_id);
   messages.push({id:job.id,leaseToken:job.lease_token,...reminderEmail(a,member,(members||[]).filter(m=>m.household_id===a.household_id),job.kind,sub||undefined,history?.assignments||[],history?.submissions||[],process.env.APP_URL||'')});
  }
- const {error:healthError}=await db.from('worker_health').update({last_run:new Date().toISOString(),last_error:null}).eq('id',1);if(healthError)throw healthError;
- return {jobs:messages,deleted};
+ let push={sent:0,failed:0};
+ // Phone delivery is independent: a push provider failure must not stop Gmail.
+ try{push=await runPushReminders(db,assignments||[],members||[],submissions||[],allSettings||[],clock);}catch{push.failed++;}
+ const {error:healthError}=await db.from('worker_health').update({last_run:new Date().toISOString(),last_error:push.failed?'Some phone notifications could not be sent. Email reminders still run.':null}).eq('id',1);if(healthError)throw healthError;
+ return {jobs:messages,deleted,push};
 }

@@ -10,6 +10,7 @@ A private, mobile-friendly cleaning app for six housemates. Next.js runs on Verc
 - Deep-clean areas: Kitchen, Oven, Stove, Toilet, Bathroom, Common Space, Lounge room, and Laundry.
 - Both Monday participants submit their own task list and photos.
 - The original household's overdue reminder starts at 10 PM Melbourne time, normally arriving within 15 minutes. Each assigned tenant is checked separately, so a Monday partner who has submitted is skipped. Submitted/approved parts are skipped; requested fixes still need resubmission. Repeated worker checks do not resend the same overdue reminder. Gmail phone notifications can alert tenants without paid SMS. The deadline remains adjustable in Household settings for each property.
+- **Phone setup** offers Home Screen installation and free Web Push reminders with an explicit opt-in. Each person can test or disable notifications on their device; email remains independent. See [Phone reminders](docs/PHONE_NOTIFICATIONS.md).
 - The overview shows each member's submitted tasks as checked and links to their saved submission, with their Monday partner's status shown separately. The next-turn date skips that member's already submitted work.
 - Each person may upload up to 10 compressed photos per assignment.
 - Submitted proof is visible to every signed-in household member. Photos expire after 15 days; task history remains.
@@ -33,6 +34,7 @@ node scripts/browser-check.mjs
 node scripts/task-feedback-check.mjs
 npx tsx scripts/onboarding-check.mts
 npx tsx scripts/submission-card-check.mts
+npx tsx scripts/phone-setup-check.mts
 ```
 
 The `/app` route requires an approved household Google account and returns a dashboard customized to that roster member. `/setup` explains the free reminder connection.
@@ -56,3 +58,5 @@ Commercial product and future session-timing ideas are saved in [Product ideas](
 Unit tests cover start dates, daily fairness, Monday pairing and task allocation, Melbourne daylight saving, reminders, bin collections, task feedback, and optional session timing. Browser checks cover login/auth gates plus admin task review, member resubmission, Start persistence, and mobile layout. `tests/task-feedback.integration.sql` verifies database guards and email queuing in a transaction that rolls back all fixtures.
 
 Walkthrough unit tests cover plan validation and the resumable Google upload protocol. `tests/onboarding.integration.sql` and `tests/cloud-upload.integration.sql` verify replacement protections, rate limits, upload leases and private permissions inside rolled-back transactions. `scripts/onboarding-check.mts` mocks household APIs to exercise upload, consent, draft recovery, replacement and mobile layout; set `CHECK_BASE_URL` to the running app. Its optional real-video mode requires explicit transfer approval and never applies the draft to production.
+
+Push tests cover reminder eligibility, encrypted payload construction, provider endpoint validation and safe notification links. `tests/push.integration.sql` checks deduplication, leases, retry limits and private grants inside a rollback. The phone browser check uses temporary accounts, exercises ownership isolation and mobile prompts, and mocks its test-send transport; verify actual handset delivery with **Send test** on the device.
