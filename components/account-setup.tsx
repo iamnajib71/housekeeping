@@ -4,7 +4,8 @@ import { House,ArrowRight,LogOut } from 'lucide-react';
 import { browserClient } from '@/lib/supabase-browser';
 import type { Household } from '@/lib/types';
 import type { SignupMode } from '@/lib/accounts';
-export async function accountRequest(body?:unknown){const r=await fetch('/api/account',body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{cache:'no-store'});const data=await r.json();if(!r.ok)throw new Error(data.error||'Unable to update your account.');return data;}
+import { propertyHeaders } from '@/lib/property-context';
+export async function accountRequest(body?:unknown){const r=await fetch('/api/account',body?{method:'POST',headers:{...propertyHeaders(),'Content-Type':'application/json'},body:JSON.stringify(body)}:{cache:'no-store'});const data=await r.json();if(!r.ok)throw new Error(data.error||'Unable to update your account.');return data;}
 export function AccountSetup(){
  const [email,setEmail]=useState(''),[memberName,setMemberName]=useState(''),[name,setName]=useState(''),[address,setAddress]=useState(''),[mode,setMode]=useState<SignupMode>('admin'),[token,setToken]=useState(''),[homes,setHomes]=useState<Household[]>([]),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[error,setError]=useState('');
  useEffect(()=>{const p=new URLSearchParams(window.location.search);setToken(p.get('invite')||'');if(p.get('mode')==='admin_tenant')setMode('admin_tenant');accountRequest().then(d=>{setEmail(d.email);setMemberName(d.name.slice(0,40));setHomes(d.homes);}).catch(e=>setError(e.message)).finally(()=>setLoading(false));},[]);

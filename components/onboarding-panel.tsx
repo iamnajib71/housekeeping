@@ -3,10 +3,11 @@ import { useEffect, useRef, useState } from 'react';
 import { Camera, Check, LoaderCircle, Plus, Sparkles, Trash2, Upload } from 'lucide-react';
 import { CleaningArea, CleaningPlan, planChecklists, timeLabel, WalkthroughTrial } from '@/lib/onboarding';
 import { MAX_VIDEO_BYTES, VIDEO_CHUNK_BYTES, VIDEO_TYPES } from '@/lib/cloud-video';
+import { propertyHeaders } from '@/lib/property-context';
 
 
 async function request(body?: unknown) {
-  const r=await fetch('/api/onboarding',body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:undefined);
+  const r=await fetch('/api/onboarding',body?{method:'POST',headers:{...propertyHeaders(),'Content-Type':'application/json'},body:JSON.stringify(body)}:{cache:'no-store',headers:propertyHeaders()});
   const result=await r.json();if(!r.ok)throw new Error(result.error||'The walkthrough could not be saved.');return result;
 }
 const emptyArea=():CleaningArea=>({name:'New area',fixtures:[],daily:[],weekly:[],frameIndex:null,confidence:'low'});
@@ -43,7 +44,7 @@ export function OnboardingPanel({onApplied}:{onApplied:()=>Promise<void>}) {
         setProgress(`Uploading video to Google: ${Math.round(offset/videoFile.size*100)}%…`);
         const chunk=videoFile.slice(offset,Math.min(videoFile.size,offset+VIDEO_CHUNK_BYTES));let next:any=null;
         for(let retry=0;retry<3;retry++){
-          try{const response=await fetch(`/api/onboarding/${started.id}/upload`,{method:'POST',headers:{'Content-Type':'application/octet-stream','x-upload-offset':String(offset)},body:chunk});const result=await response.json();if(!response.ok)throw new Error(result.error||'Video upload interrupted.');next=result;break;}
+          try{const response=await fetch(`/api/onboarding/${started.id}/upload`,{method:'POST',headers:{...propertyHeaders(),'Content-Type':'application/octet-stream','x-upload-offset':String(offset)},body:chunk});const result=await response.json();if(!response.ok)throw new Error(result.error||'Video upload interrupted.');next=result;break;}
           catch(e){if(retry===2)throw e;await new Promise(resolve=>setTimeout(resolve,1500));}
         }
         if(!next||next.nextOffset<=offset||next.nextOffset>videoFile.size)throw new Error('The cloud upload did not advance. Choose the video again.');offset=next.nextOffset;

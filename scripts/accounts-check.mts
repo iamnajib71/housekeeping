@@ -33,14 +33,14 @@ try{
  const owner=await fixture('owner'),tenant=await fixture('tenant'),other=await fixture('other');
  await owner.page.goto(base+'/welcome?mode=admin');await expect(owner.page.getByRole('heading',{name:'Let’s set up your property'})).toBeVisible();
  await owner.page.getByLabel('Your name',{exact:true}).fill('Trial manager');await owner.page.getByLabel('Property name',{exact:true}).fill('Trial property');await owner.page.getByLabel('Property address',{exact:true}).fill('1 Test Street, Melbourne VIC 3000');await owner.page.getByRole('button',{name:'Create property',exact:true}).click();
- await owner.page.waitForURL(base+'/app');let data=await (await owner.context.request.get(base+'/api/dashboard')).json();homes.push(data.household.id);
+ await owner.page.waitForURL(/\/app(?:\?|$)/);let data=await (await owner.context.request.get(base+'/api/dashboard')).json();homes.push(data.household.id);
  expect(data.me.role).toBe('admin');expect(data.me.participates).toBe(false);expect(data.assignments).toEqual([]);expect(data.settings.daily_tasks).toEqual([]);expect(data.settings.council_bins_enabled).toBe(false);
  await expect(owner.page.getByText('1 Test Street, Melbourne VIC 3000',{exact:true})).toBeVisible();await expect(owner.page.getByRole('heading',{name:'Set up your first property',exact:true})).toBeVisible();
  await owner.page.getByRole('button',{name:'Set up cleaning areas',exact:true}).click();await expect(owner.page.getByRole('heading',{name:'Set up your home from a walkthrough'})).toBeVisible();await owner.page.screenshot({path:'.local/account-manager-mobile.png'});
  const save=await post(owner,'/api/admin',{action:'settings',settings:{...data.settings,daily_tasks:['Kitchen: Wipe surfaces'],weekly_tasks:['Kitchen: Deep clean','Bathroom: Deep clean']}});expect(save.status()).toBe(200);
  const invite=await post(owner,'/api/account',{action:'invite',email:tenant.email,name:'Trial tenant'});expect(invite.status()).toBe(200);const inviteData=await invite.json(),token=new URL(inviteData.url).searchParams.get('token');
  expect((await post(other,'/api/account',{action:'accept',token})).status()).toBe(400);
- await tenant.page.goto(base+'/welcome?invite='+token);await expect(tenant.page.getByRole('button',{name:'Accept invitation',exact:true})).toBeVisible();await tenant.page.getByRole('button',{name:'Accept invitation',exact:true}).click();await tenant.page.waitForURL(base+'/app');
+ await tenant.page.goto(base+'/welcome?invite='+token);await expect(tenant.page.getByRole('button',{name:'Accept invitation',exact:true})).toBeVisible();await tenant.page.getByRole('button',{name:'Accept invitation',exact:true}).click();await tenant.page.waitForURL(/\/app(?:\?|$)/);
  expect((await post(tenant,'/api/account',{action:'accept',token})).status()).toBe(200);
  let joined=await (await tenant.context.request.get(base+'/api/dashboard')).json();expect(joined.me.role).toBe('member');expect(joined.members).toHaveLength(2);expect(joined.me.participates).toBe(true);expect(joined.assignments.length).toBeGreaterThan(0);expect(joined.assignments.every((a:any)=>a.member_ids.includes(joined.me.id)&&a.kind==='daily')).toBe(true);
  expect((await post(tenant,'/api/account',{action:'invite',name:'Forbidden',email:other.email})).status()).toBe(403);
@@ -56,6 +56,8 @@ try{
  const second=await post(owner,'/api/account',{action:'create',name:'Second managed home',address:'3 Test Street, Melbourne VIC 3000',memberName:'Trial manager',mode:'admin'});expect(second.status()).toBe(200);const secondId=(await second.json()).id;homes.push(secondId);
  expect((await (await owner.context.request.get(base+'/api/account')).json()).homes).toHaveLength(2);
  expect((await (await owner.context.request.get(base+'/api/dashboard')).json()).household.id).toBe(secondId);
+ expect((await (await owner.context.request.get(base+'/api/dashboard',{headers:{'x-household-id':String(homes[0])}})).json()).household.id).toBe(homes[0]);
+ expect((await other.context.request.get(base+'/api/dashboard',{headers:{'x-household-id':String(homes[0])}})).status()).toBe(403);
  expect((await post(owner,'/api/account',{action:'select',id:homes[0]})).status()).toBe(200);
  expect((await (await owner.context.request.get(base+'/api/dashboard')).json()).household.id).toBe(homes[0]);
  const after=await db.from('household_settings').select('*').eq('id',1).single();expect(after.data).toEqual(before.data);

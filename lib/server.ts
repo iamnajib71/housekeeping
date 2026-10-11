@@ -1,7 +1,7 @@
 import 'server-only';
 import { createClient } from '@supabase/supabase-js';
 import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
+import { cookies,headers } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { timingSafeEqual } from 'node:crypto';
 import type { Assignment, Member, Settings } from './types';
@@ -29,7 +29,9 @@ export async function userMemberships(db:ReturnType<typeof database>,user:{id:st
 }
 export async function requireMember(admin=false) {
  const {db,user}=await requireUser(),members=await userMemberships(db,user);
- const selected=Number((await cookies()).get('household')?.value);
+ const requested=(await headers()).get('x-household-id');
+ const selected=Number(requested||(await cookies()).get('household')?.value);
+ if(requested&&!members.some(m=>m.household_id===selected))throw new ApiError('This property is not on your account.',403);
  const member=members.find(m=>m.household_id===selected)||members[0];
  if(!member)throw new ApiError('Create a home or accept your tenant invitation to get started.',403);
  if(admin&&member.role!=='admin') throw new ApiError('Only the household admin can do this.',403);

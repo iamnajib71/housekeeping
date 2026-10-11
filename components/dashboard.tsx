@@ -4,6 +4,7 @@ import { ArrowDownToLine, ArrowLeft, ArrowRight, CalendarDays, Camera, Check, Ch
 import { OnboardingPanel } from '@/components/onboarding-panel';
 import { HomeControls,InviteTenant,FirstUseGuide } from '@/components/home-controls';
 import { accountRequest } from '@/components/account-setup';
+import { propertyHeaders } from '@/lib/property-context';
 import { TaskReview } from '@/components/task-review';
 import { taskReviewState, sessionSummary } from '@/lib/task-feedback';
 import type { Assignment, DashboardData, Member, Photo, Settings, Submission, TaskFeedback } from '@/lib/types';
@@ -12,7 +13,7 @@ import { browserClient } from '@/lib/supabase-browser';
 import { nextWasteCollection, shortBinName, wasteCollectionsBetween } from '@/lib/waste';
 type Tab = 'overview' | 'schedule' | 'history' | 'household' | 'settings' | 'qr';
 async function api(path: string, init?: RequestInit) {
-  const response = await fetch(path, { cache:'no-store',...init, headers: { ...(init?.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }), ...init?.headers } });
+  const response = await fetch(path, { cache:'no-store',...init, headers: { ...propertyHeaders(),...(init?.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }), ...init?.headers } });
   const result = await response.json();
   if (!response.ok) throw new Error(result.error || 'Something went wrong. Please try again.');
   return result;
@@ -24,7 +25,7 @@ export function Dashboard({ initial }: { initial?: DashboardData }) {
   const openedLink = useRef(false);
   const [deepCleanDate, setDeepCleanDate] = useState('');
   useEffect(() => { if (!data || openedLink.current) return; if (new URLSearchParams(window.location.search).get('view') === 'setup' && data.me.role === 'admin') setTab('settings'); const id = new URLSearchParams(window.location.search).get('assignment'); if (id) { const a = data.assignments.find(a => a.id === id); if (a) setSelected(a); } openedLink.current = true; }, [data]);
-  const reload = useCallback(async () => { try { const next = await api('/api/dashboard'); setData(next); setWeek(w => w || mondayOf(next.today < next.settings.daily_start ? next.settings.daily_start : next.today)); setError(''); } catch (e) { setError((e as Error).message); } }, []);
+  const reload = useCallback(async () => { try { const next = await api('/api/dashboard'); const location=new URL(window.location.href);location.searchParams.set('home',String(next.household?.id||next.settings.id));window.history.replaceState(null,'',location);setData(next); setWeek(w => w || mondayOf(next.today < next.settings.daily_start ? next.settings.daily_start : next.today)); setError(''); } catch (e) { setError((e as Error).message); } }, []);
   useEffect(() => { if (!initial) { const home=Number(new URLSearchParams(window.location.search).get('home')); if(home)accountRequest({action:'select',id:home}).then(reload).catch(e=>setError(e.message));else void reload(); } }, [initial, reload]);
   useEffect(() => { if (toast) { const timer = setTimeout(() => setToast(''), 5000); return () => clearTimeout(timer); } }, [toast]);
   if (!data) return <main className="loading-page"><span className="brand-icon"><House /></span><h1>Housekeeping</h1>{error ? <><p role="alert" className="error">{error}</p><a className="button primary" href="/welcome">Set up or join a home</a><a className="button" href="/">Back to login</a><button className="button" onClick={reload}>Try again</button></> : <p><LoaderCircle className="spin" /> Opening your household…</p>}</main>;
