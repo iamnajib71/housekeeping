@@ -9,6 +9,7 @@ A private, mobile-friendly cleaning app for six housemates. Next.js runs on Verc
 - Timezone: `Australia/Melbourne`, including daylight saving.
 - Deep-clean areas: Kitchen, Oven, Stove, Toilet, Bathroom, Common Space, Lounge room, and Laundry.
 - Both Monday participants submit their own task list and photos.
+- The original household's overdue reminder starts at 10 PM Melbourne time, normally arriving within 15 minutes. Each assigned tenant is checked separately, so a Monday partner who has submitted is skipped. Submitted/approved parts are skipped; requested fixes still need resubmission. Repeated worker checks do not resend the same overdue reminder. Gmail phone notifications can alert tenants without paid SMS. The deadline remains adjustable in Household settings for each property.
 - The overview shows each member's submitted tasks as checked and links to their saved submission, with their Monday partner's status shown separately. The next-turn date skips that member's already submitted work.
 - Each person may upload up to 10 compressed photos per assignment.
 - Submitted proof is visible to every signed-in household member. Photos expire after 15 days; task history remains.

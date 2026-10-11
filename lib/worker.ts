@@ -1,6 +1,7 @@
 import 'server-only';
 import { database,ensureSchedule } from './server';
-import { addDays,localClock,reminderTypes } from './schedule';
+import { addDays,localClock } from './schedule';
+import { memberReminderTypes,reminderIsCurrent } from './reminders';
 import type { Assignment,Submission } from './types';
 import { reminderEmail } from './reminder-email';
 import { deleteVideoFile } from './cloud-video';
@@ -32,8 +33,7 @@ export async function pollEmails(limit:number) {
  const jobs=[];
  for(const a of (assignments||[]) as Assignment[])for(const memberId of a.member_ids){
   const settings=allSettings?.find(s=>s.id===a.household_id);if(!settings||!members?.find(m=>m.id===memberId)?.email)continue;
-  const sub=(submissions||[]).find(s=>s.assignment_id===a.id&&s.member_id===memberId);
-  for(const kind of reminderTypes(a.date,clock.date,clock.hour,settings,Boolean(sub&&['submitted','approved'].includes(sub.status))))jobs.push({dedupe_key:a.id+':'+memberId+':'+kind,member_id:memberId,assignment_id:a.id,kind});
+  for(const kind of memberReminderTypes(a,memberId,submissions||[],clock.date,clock.hour,settings))jobs.push({dedupe_key:a.id+':'+memberId+':'+kind,member_id:memberId,assignment_id:a.id,kind});
  }
  if(jobs.length){const {error}=await db.from('email_jobs').upsert(jobs,{onConflict:'dedupe_key',ignoreDuplicates:true});if(error)throw error;}
  const {data:claimed,error:claimError}=await db.rpc('claim_emails',{p_limit:limit});if(claimError)throw claimError;
@@ -43,9 +43,8 @@ export async function pollEmails(limit:number) {
   const member=members?.find(m=>m.id===job.member_id);
   const {data:a,error}=await db.from('assignments').select('*').eq('id',job.assignment_id).single();if(error)throw error;
   const {data:sub,error:readError}=await db.from('submissions').select('*').eq('assignment_id',a.id).eq('member_id',job.member_id).maybeSingle();if(readError)throw readError;
-  const done=sub&&['submitted','approved'].includes(sub.status);
-  const stale=job.kind==='tomorrow'?a.date!==addDays(clock.date,1):job.kind==='today'?a.date!==clock.date:job.kind==='overdue'?a.date<addDays(clock.date,-1)||a.date>clock.date:sub?.status!=='rework';
-  if(!allSettings?.find(s=>s.id===a.household_id)?.reminders_enabled||!member?.email||member.household_id!==a.household_id||!a.member_ids.includes(job.member_id)||done||stale){const {error}=await db.from('email_jobs').update({status:'cancelled'}).eq('id',job.id);if(error)throw error;continue;}
+  const settings=allSettings?.find(s=>s.id===a.household_id);
+  if(!settings||!member?.email||member.household_id!==a.household_id||!reminderIsCurrent(job.kind,a,job.member_id,sub?[sub]:[],clock.date,clock.hour,settings)){const {error}=await db.from('email_jobs').update({status:'cancelled'}).eq('id',job.id);if(error)throw error;continue;}
   if(a.kind==='weekly'&&job.kind!=='rework'&&!histories.has(a.household_id)){
    const {data:history,error}=await db.from('assignments').select('*').eq('household_id',a.household_id).eq('kind','weekly').gte('date',addDays(clock.date,-365)).order('date');if(error)throw error;
    let prior:Submission[]=[];
