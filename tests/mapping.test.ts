@@ -9,7 +9,7 @@ test('map imports bound geometry, timestamps and metrics without trusting extra 
 });
 test('confirmed map labels generate a small editable cleaning draft, without claiming room recognition',()=>{
   const plan=mapAreasToPlan([{name:'Kitchen',start:0,end:10,fixtures:['Sink','Stove','Oven']},{name:'Toilet 1',start:10,end:20,fixtures:['Toilet']}],20);
-  const lists=planChecklists(plan);assert.equal(lists.daily.length,6);assert.equal(lists.weekly.length,3);
+  const lists=planChecklists(plan);assert.equal(lists.daily.length,6);assert.equal(lists.weekly.length,4);
   assert.match(plan.notes,/labelled by the admin/);assert.ok(plan.areas.every(a=>a.confidence==='low'&&a.frameIndex===null));
   assert.equal(plan.areas[1].seconds,10);
   for(const areas of [[{name:'Kitchen',start:0,end:21,fixtures:[]}],[{name:'Kitchen',start:10,end:0,fixtures:[]}],[{name:'Kitchen',start:0,end:10,fixtures:[]},{name:'kitchen',start:10,end:20,fixtures:[]}],[]])assert.throws(()=>mapAreasToPlan(areas,20));

@@ -1,3 +1,4 @@
+import { weeklyTasksWithBins } from './weekly-bins';
 export const MAX_WALKTHROUGH_SECONDS = 180;
 export const MAX_WALKTHROUGH_FRAMES = 16;
 export const MAX_FRAME_BASE64 = 200_000;
@@ -43,12 +44,12 @@ export function validatePlan(value: unknown, frameCount = MAX_WALKTHROUGH_FRAMES
 }
 export function planChecklists(plan: CleaningPlan) {
   const daily = [...new Set(plan.areas.flatMap(a=>a.daily.map(task=>`${a.name}: ${task}`)))];
-  const weekly = [...new Set(plan.areas.flatMap(a=>a.weekly.map(task=>`${a.name}: ${task}`)))];
+  const weekly = weeklyTasksWithBins(plan.areas.flatMap(a=>a.weekly.map(task=>`${a.name}: ${task}`)));
   for (const [label,tasks] of [['daily',daily],['weekly',weekly]] as const) {
     if (!tasks.length || tasks.length > 30) throw new OnboardingError(`The ${label} checklist needs 1–30 duties.`);
     if (tasks.some(t=>t.length>150)) throw new OnboardingError(`Shorten the ${label} duties: area name plus duty must fit within 150 characters.`);
   }
-  return {daily,weekly,areas:plan.areas.map(a=>a.name)};
+  return {daily,weekly,areas:[...new Set([...plan.areas.map(a=>a.name),...weekly.map(task=>task.split(': ')[0])])]};
 }
 // Model timestamps are suggestions. Discard impossible moments rather than
 // inventing evidence or losing an otherwise useful, editable draft.

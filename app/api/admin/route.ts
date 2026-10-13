@@ -1,4 +1,5 @@
 import { ApiError,bodyJson,checkOrigin,failure,ok,requireMember,getAssignment } from '@/lib/server';
+import { weeklyTasksWithBins } from '@/lib/weekly-bins';
 export async function POST(request:Request){
  try{
   checkOrigin(request);const {db,member}=await requireMember(true);const body=await bodyJson(request);
@@ -18,7 +19,9 @@ export async function POST(request:Request){
    for(const key of ['evening_hour','morning_hour','deadline_hour'])if(!Number.isInteger(s[key])||s[key]<0||s[key]>23)throw new ApiError('Choose a valid reminder hour.');
    if(s.morning_hour>=s.deadline_hour)throw new ApiError('The morning reminder must be before the deadline.');
    if(typeof s.reminders_enabled!=='boolean')throw new ApiError('Invalid reminder preference.');
-   const {error}=await db.rpc('save_household_settings',{p_household:member.household_id,p_daily:[...new Set(s.daily_tasks.map((t:string)=>t.trim()))],p_weekly:[...new Set(s.weekly_tasks.map((t:string)=>t.trim()))],p_evening:s.evening_hour,p_morning:s.morning_hour,p_deadline:s.deadline_hour,p_enabled:s.reminders_enabled});if(error)throw error;return ok({ok:true});
+   const weekly=weeklyTasksWithBins(s.weekly_tasks);
+   if(weekly.length>30)throw new ApiError('Use up to 29 weekly duties plus the Monday bin duty.');
+   const {error}=await db.rpc('save_household_settings',{p_household:member.household_id,p_daily:[...new Set(s.daily_tasks.map((t:string)=>t.trim()))],p_weekly:weekly,p_evening:s.evening_hour,p_morning:s.morning_hour,p_deadline:s.deadline_hour,p_enabled:s.reminders_enabled});if(error)throw error;return ok({ok:true});
   }
   if(body.action==='review_tasks'){
    await ownSubmission(body.id);

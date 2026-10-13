@@ -20,7 +20,7 @@ test('AI overload becomes six conditional daily checks and concise Monday duties
   assert.ok(!lists.daily.some(task=>/scrub|vacuum|bathtub|mirror|dust/i.test(task)));
   assert.match(lists.weekly.join('\n'),/Scrub toilet bowl/);
   assert.match(lists.weekly.join('\n'),/sink, mirror, shower, bathtub/);
-  assert.equal(lists.weekly.length,5);
+  assert.equal(lists.weekly.length,6);
   assert.ok(!lists.weekly.some(task=>/windows|blinds/i.test(task)));
   assert.match(result.notes,/occasional/);
   assert.deepEqual(result.areas.map(a=>[a.name,a.fixtures,a.seconds,a.confidence]),plan.areas.map(a=>[a.name,a.fixtures,a.seconds,a.confidence]));

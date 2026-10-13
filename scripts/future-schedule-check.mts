@@ -8,6 +8,7 @@ let me=testMembers[0];const errors:string[]=[],writes:string[]=[];
 page.on('pageerror',e=>errors.push(e.message));
 await page.route('**/api/dashboard',r=>r.fulfill({json:{me,members:testMembers,settings:defaultSettings,assignments,submissions:[],today}}));
 await page.route('**/api/assignments/*',r=>{if(r.request().method()!=='GET')writes.push(r.request().method());return r.fulfill({json:{submissions:[],photos:[]}});});
+await page.route('**/api/account',r=>r.fulfill({json:{ok:true,homes:[]}}));
 async function openSchedule(){await page.getByRole('button',{name:'Cleaning schedule',exact:true}).click();}
 async function checkFutureWeekly(){
  await page.getByLabel('Jump to schedule date').fill('2026-10-12');
@@ -24,7 +25,8 @@ try{
  await page.goto(base+'/app',{waitUntil:'networkidle'});
  await page.getByLabel('Deep-clean date').selectOption('2026-10-12');
  const summary=page.locator('.deep-summary');await expect(summary.locator('p')).toContainText('12 Oct');
- await expect(summary.locator('.area small').filter({hasText:'Assigned to'})).toHaveCount(defaultSettings.weekly_tasks.length);
+ await expect(summary.getByLabel('Monday bin responsibility')).toContainText('Changing the household bins:');
+ await expect(summary.locator('.area small').filter({hasText:'Assigned to'})).toHaveCount(new Set(assignments.find(a=>a.id==='weekly-2026-10-12')!.tasks.map(t=>t.split(': ')[0])).size);
  await page.setViewportSize({width:390,height:844});
  await expect.poll(()=>page.locator('.sidebar').evaluate(el=>el.getBoundingClientRect().right)).toBeLessThanOrEqual(0);
  if(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth))throw new Error('Monday selector overflows on mobile');
@@ -50,3 +52,4 @@ try{
  if(errors.length||writes.length)throw new Error(JSON.stringify({errors,writes}));
  console.log('Dashboard Monday selector, Tuesday bin duties, future daily duties, both Monday shares, assigned and unassigned viewers, date jumps, no future edits, and mobile layout passed.');
 }finally{await browser.close();}
+

@@ -40,6 +40,6 @@ test('Monday reminders match each person’s rotated share, including earlier cl
     const member={...testMembers.find(m=>m.id===id)!,email:'cleaner@example.com'};
     const email=reminderEmail(a,member,testMembers,'tomorrow',undefined,history,[sub],'https://household.example');
     assert.deepEqual(email.body.split('\n').filter(line=>line.startsWith('• ')).map(line=>line.slice(2)),plan[id]);
-    assert.equal(plan[id].length,4);
+    assert.ok([4,5].includes(plan[id].length));
   }
 });

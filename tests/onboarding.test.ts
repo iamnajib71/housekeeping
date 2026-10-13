@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { snapshotTimes, validatePlan, validateVideoPlan, validateFrames, planChecklists, CleaningPlan } from '../lib/onboarding';
 import { detectCleaningPlan } from '../lib/onboarding-ai';
 import { lightCleaningRoutine } from '../lib/onboarding-routine';
+import { MONDAY_BIN_TASK } from '../lib/weekly-bins';
 const plan:CleaningPlan={areas:[{name:'Kitchen',fixtures:['Stove','Sink'],daily:['Wipe benches'],weekly:['Clean the oven'],frameIndex:0,confidence:'high'}],unseenAreas:['Laundry'],notes:'Confirm unseen areas.'};
 const frames=[{seconds:1,data:'/9j/'+ 'A'.repeat(24)}];
 
@@ -32,7 +33,7 @@ test('untrusted plan is bounded and must use genuine submitted frame indices',()
   assert.deepEqual(validatePlan({...plan,areas:[]}).areas,[]);
 });
 test('app checklists preserve area names and require useful daily and weekly duties',()=>{
-  assert.deepEqual(planChecklists(plan),{daily:['Kitchen: Wipe benches'],weekly:['Kitchen: Clean the oven'],areas:['Kitchen']});
+  assert.deepEqual(planChecklists(plan),{daily:['Kitchen: Wipe benches'],weekly:['Kitchen: Clean the oven',MONDAY_BIN_TASK],areas:['Kitchen','Bins']});
   assert.throws(()=>planChecklists({...plan,areas:[]}));
   assert.throws(()=>planChecklists({...plan,areas:[{...plan.areas[0],daily:['x'.repeat(150)]}]}));
 });

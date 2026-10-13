@@ -1,5 +1,6 @@
 import type { Assignment, Kind, Member, Settings, Submission } from './types';
 import { dailyTasksForDate } from './waste';
+import { isWeeklyBinTask, weeklyTasksWithBins } from './weekly-bins';
 export const TIMEZONE = 'Australia/Melbourne';
 export const DAILY_START = '2026-09-27';
 export const WEEKLY_START = '2026-10-05';
@@ -62,7 +63,7 @@ export function generateSchedule(members: Member[], settings: Settings, from: st
         assigned = [ids[((index%ids.length)+ids.length)%ids.length]];
       }
     } else continue;
-    result.push({ id: `${settings.id===1?'':settings.id+'-'}${kind}-${date}`, ...(settings.id!==1?{household_id:settings.id}:{}), date, kind, member_ids: assigned, tasks: kind === 'daily' ? (settings.council_bins_enabled===false?[...settings.daily_tasks]:dailyTasksForDate(settings.daily_tasks, date)) : settings.weekly_tasks });
+    result.push({ id: `${settings.id===1?'':settings.id+'-'}${kind}-${date}`, ...(settings.id!==1?{household_id:settings.id}:{}), date, kind, member_ids: assigned, tasks: kind === 'daily' ? (settings.council_bins_enabled===false?[...settings.daily_tasks]:dailyTasksForDate(settings.daily_tasks, date)) : weeklyTasksWithBins(settings.weekly_tasks) });
   }
   return result;
 }
@@ -100,7 +101,9 @@ export function weeklyTaskPlan(a: Assignment, assignments: Assignment[], submiss
   const limits: Record<string, number> = { [first]: Math.ceil(a.tasks.length / 2), [second]: Math.floor(a.tasks.length / 2) };
   const plan: Record<string, string[]> = { [first]: [], [second]: [] };
   const effort:Record<string,number>={[first]:0,[second]:0};
-  (a.legacy_task_split?[...a.tasks]:[...a.tasks].sort((left,right)=>taskEffort(right)-taskEffort(left))).forEach((task, taskIndex) => {
+  // Reserve the bin owner's place before filling either share, so a full share
+  // cannot override rotation away from the person who last changed the bins.
+  (a.legacy_task_split?[...a.tasks]:[...a.tasks].sort((left,right)=>Number(isWeeklyBinTask(right))-Number(isWeeklyBinTask(left))||taskEffort(right)-taskEffort(left))).forEach((task, taskIndex) => {
     const candidates = [first, second].filter(id => plan[id].length < limits[id]);
     const chosen = candidates.sort((left, right) => {
       const l = stats.get(`${left}\u0000${areaKey(task)}`), r = stats.get(`${right}\u0000${areaKey(task)}`);
