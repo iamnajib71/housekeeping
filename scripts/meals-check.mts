@@ -1,0 +1,72 @@
+import {chromium,expect} from '@playwright/test';
+import {randomUUID} from 'node:crypto';
+import {emptyMealState,ensureDailyRice,applyMealCommand,type MealGroup,type MealCommand} from '../lib/meals';
+import {defaultSettings,testMembers} from '../tests/fixtures';
+const base=process.env.CHECK_BASE_URL||'http://localhost:3011',today='2026-10-18',now=new Date('2026-10-18T03:00Z');
+let me=testMembers[0];
+const id=randomUUID(),first=ensureDailyRice({id,household_id:1,name:'Dinner group',member_ids:testMembers.slice(0,3).map(m=>m.id),created_by:me.id,created_at:now.toISOString(),version:0,state:emptyMealState()},now);
+let groups:MealGroup[]=[applyMealCommand(first,me.id,{action:'trip',request_id:randomUUID(),members:first.member_ids.slice(1),on:today},now)];
+const browser=await chromium.launch(),page=await browser.newPage({viewport:{width:1280,height:900}}),errors:string[]=[];
+page.on('pageerror',e=>errors.push(e.message));
+await page.addInitScript(()=>localStorage.setItem('housekeeping-phone-later',String(Date.now()+86400000)));
+await page.route('**/api/dashboard',r=>r.fulfill({json:{me,members:testMembers,settings:defaultSettings,assignments:[],submissions:[],today}}));
+await page.route('**/api/account',r=>r.fulfill({json:{ok:true,homes:[]}}));
+await page.route('**/api/meals',async r=>{
+ if(r.request().method()==='GET')return r.fulfill({json:{groups:groups.filter(g=>g.member_ids.includes(me.id))}});
+ const b=r.request().postDataJSON();
+ try{
+  let saved:MealGroup;
+  if(b.action==='create')saved=ensureDailyRice({id:b.request_id,household_id:1,name:b.name,member_ids:b.members,created_by:me.id,created_at:now.toISOString(),version:0,state:emptyMealState()},now);
+  else{const g=groups.find(g=>g.id===b.group_id);if(!g)throw new Error('Missing group');saved=applyMealCommand(g,me.id,b as MealCommand,now);saved.version++;}
+  groups=groups.filter(g=>g.id!==saved.id).concat(saved);return r.fulfill({json:saved});
+ }catch(e){return r.fulfill({status:400,json:{error:(e as Error).message}});}
+});
+try{
+ await page.goto(base+'/app?view=meals',{waitUntil:'networkidle'});
+ await expect(page.getByLabel('Daily rice')).toContainText(testMembers[0].name);
+ await expect(page.locator('.meal-trip-receipt')).toContainText(testMembers[1].name+' & '+testMembers[2].name);
+ await page.getByRole('button',{name:'Plan first cook',exact:true}).click();
+ const form=page.getByRole('form',{name:'Cooking plan'});
+ await form.getByLabel('Dishes').fill('Chicken curry\nDal');
+ await form.getByRole('button',{name:'Confirm cooking plan',exact:true}).click();
+ await expect(page.getByLabel('Next cooking')).toContainText('Confirmed');
+ await page.getByRole('button',{name:'Batch ready',exact:true}).click();
+ await expect(page.getByLabel('Current food')).toContainText('Chicken curry + Dal');
+ await expect(page.getByLabel('Next cooking')).toContainText('Suggested');
+ await page.getByRole('button',{name:'Running low',exact:true}).click();
+ await expect(page.getByLabel('Next cooking')).toContainText('19 Oct');
+ await page.getByLabel('Shopping item', {exact:true}).fill('Milk 2 litres');
+ await page.getByRole('button',{name:'Add',exact:true}).click();
+ await expect(page.getByLabel('Shopping list')).toContainText('Milk 2 litres');
+ await page.getByRole('button',{name:'Bought',exact:true}).click();
+ await expect(page.getByLabel('Shopping list')).toContainText('0 items needed');
+ await page.getByRole('button',{name:'Rice done',exact:true}).click();
+ await expect(page.getByLabel('Daily rice')).toContainText('Done');
+ await page.getByText('Log a grocery trip · one or more people',{exact:true}).click();
+ const trip=page.locator('.meal-trip-form');
+ await trip.getByRole('checkbox',{name:testMembers[1].name,exact:true}).check();
+ await trip.getByRole('button',{name:'Save grocery trip',exact:true}).click();
+ await expect(page.locator('.meal-trip-receipt')).toContainText(testMembers[0].name+' & '+testMembers[1].name);
+ await page.screenshot({path:'.local/meals-desktop.png',fullPage:true});
+ await page.getByRole('button',{name:'New group',exact:true}).click();
+ const create=page.getByRole('heading',{name:'Start a meal group'}).locator('..');
+ await create.getByLabel('Group name').fill('Another dinner group');
+ await create.getByRole('checkbox',{name:testMembers[3].name,exact:true}).check();
+ await create.getByRole('checkbox',{name:testMembers[4].name,exact:true}).check();
+ await create.getByRole('button',{name:'Create meal group',exact:true}).click();
+ await expect(page.getByLabel('Current food')).toContainText('No batch recorded yet');
+ await expect(page.getByLabel('Shopping list')).not.toContainText('Milk 2 litres');
+ await expect(page.locator('.meal-trip-receipt')).toHaveCount(0);
+ await page.getByLabel('Meal group',{exact:true}).selectOption(id);
+ await expect(page.getByLabel('Current food')).toContainText('Chicken curry + Dal');
+ await page.setViewportSize({width:390,height:844});
+ await expect.poll(()=>page.locator('.sidebar').evaluate(el=>el.getBoundingClientRect().right)).toBeLessThanOrEqual(0);
+ await page.locator('.meal-toolbar').scrollIntoViewIfNeeded();
+ if(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth))throw new Error('Meals overflow on mobile');
+ await page.screenshot({path:'.local/meals-mobile.png',fullPage:true});
+ me=testMembers[1];await page.goto(base+'/app?view=meals',{waitUntil:'networkidle'});
+ await expect(page.getByLabel('Current food')).toContainText('Chicken curry + Dal');
+ await expect(page.getByLabel('Meal group',{exact:true}).locator('option')).toHaveCount(1);
+ if(errors.length)throw new Error(errors.join('\n'));
+ console.log('Meals passed: daily rice, joint trip, cooking/ready/low flow, shopping, multi-group isolation, another member, mobile layout.');
+}finally{await browser.close();}

@@ -2,6 +2,7 @@ import 'server-only';
 import { database,ensureSchedule } from './server';
 import { addDays,localClock } from './schedule';
 import { memberReminderTypes,reminderIsCurrent } from './reminders';
+import { pollMealNotices } from './meals-worker';
 import { runPushReminders } from './push-worker';
 import type { Assignment,Submission } from './types';
 import { reminderEmail } from './reminder-email';
@@ -58,6 +59,8 @@ export async function pollEmails(limit:number) {
  let push={sent:0,failed:0};
  // Phone delivery is independent: a push provider failure must not stop Gmail.
  try{push=await runPushReminders(db,assignments||[],members||[],submissions||[],allSettings||[],clock);}catch{push.failed++;}
- const {error:healthError}=await db.from('worker_health').update({last_run:new Date().toISOString(),last_error:push.failed?'Some phone notifications could not be sent. Email reminders still run.':null}).eq('id',1);if(healthError)throw healthError;
+ let mealFailure=false;
+ try{const meals=await pollMealNotices(db,Math.max(0,limit-messages.length),members||[]);messages.push(...meals.jobs);push.sent+=meals.push.sent;push.failed+=meals.push.failed;}catch{mealFailure=true;}
+ const {error:healthError}=await db.from('worker_health').update({last_run:new Date().toISOString(),last_error:mealFailure?'Meal reminders could not run. Cleaning reminders still run.':push.failed?'Some phone notifications could not be sent. Email reminders still run.':null}).eq('id',1);if(healthError)throw healthError;
  return {jobs:messages,deleted,push};
 }

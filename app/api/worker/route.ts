@@ -11,8 +11,11 @@ export async function POST(request:Request){
   }
   if(body.action==='ack'){
    if(typeof body.id!=='string'||typeof body.leaseToken!=='string')throw new ApiError('Invalid acknowledgement.');
+   const meal=body.id.startsWith('meal:');
+   const id=meal?body.id.slice(5):body.id;
+   if(!/^[0-9a-f-]{36}$/i.test(id)||!/^[0-9a-f-]{36}$/i.test(body.leaseToken))throw new ApiError('Invalid acknowledgement.');
    const db=database();
-   const {data,error}=await db.from('email_jobs').update({status:'sent',sent_at:new Date().toISOString()}).eq('id',body.id).eq('lease_token',body.leaseToken).in('status',['leased','sent']).select('id');
+   const {data,error}=await db.from(meal?'meal_notice_jobs':'email_jobs').update({status:'sent',sent_at:new Date().toISOString()}).eq('id',id).eq('lease_token',body.leaseToken).in('status',['leased','sent']).select('id');
    if(error)throw error;if(!data?.length)throw new ApiError('The delivery lease no longer matches.',409);
    return ok({ok:true});
   }
