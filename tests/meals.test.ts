@@ -78,7 +78,7 @@ test('shopping list updates do not fabricate trips; invalid inputs and outsiders
 });
 test('two-person groups still get distinct cooks and preparers, with a shared grocery role',()=>{
  const g=plan(group(['a','b']));const b=g.state.batches[0];assert.notEqual(b.roles.cook,b.roles.prep);
- assert.ok(g.member_ids.includes(b.roles.shopper));
+ assert.ok(g.member_ids.includes(b.roles.shopper!));
 });
 test('larger groups distribute cooking turns across all available people',()=>{
  for(const count of [4,6,12]){
@@ -110,4 +110,43 @@ test('missing groceries prompt only the assigned shopper; bought or have suppres
  assert.equal(shopping.length,1);assert.equal(shopping[0].member_id,b.roles.shopper);
  g=act(g,'item_status',{item_id:g.state.items[0].id,status:'have'});
  assert.ok(!mealReminders(g,at).some(n=>n.title.includes('Ingredients still needed')));
+});
+test('no groceries today preserves the list and previous joint credit, and does not disable future shopping',()=>{
+ let g=act(group(),'trip',{members:['b','c'],on:'2026-10-18'});
+ g=act(g,'item',{text:'Milk for later',urgency:'soon'});
+ const before=structuredClone(g.state.events);
+ g=act(g,'groceries_needed',{needed:false});
+ assert.deepEqual(g.state.events,before);
+ assert.equal(g.state.items[0].status,'needed');
+ g=plan(g);
+ assert.equal(g.state.batches[0].roles.shopper,null);
+ const late=new Date('2026-10-18T04:30Z');
+ assert.ok(!mealReminders(g,late).some(n=>n.title.includes('Ingredients still needed')));
+ assert.equal(mealCount(g,'b','grocery'),1);assert.equal(mealCount(g,'c','grocery'),1);
+ g=act(g,'ready',{batch_id:g.state.batches[0].id});
+ assert.ok(g.state.batches.at(-1)!.roles.shopper);
+ assert.notEqual(suggestMealRoles(g,g.member_ids,true).shopper,null);
+});
+test('None is accepted in cooking plans and does not require a third active duty',()=>{
+ const g=act(group(),'plan',{participants:['a','b','c'],dishes:['Curry'],when:mealInstant('2026-10-18','19:00'),days:3,cook:'a',prep:'b',shopper:null});
+ assert.equal(g.state.batches[0].roles.shopper,null);
+ assert.notEqual(g.state.batches[0].roles.cook,g.state.batches[0].roles.prep);
+ assert.throws(()=>act(group(),'plan',{participants:['a','b','c'],dishes:['Curry'],when:mealInstant('2026-10-18','19:00'),days:3,cook:'a',prep:'a',shopper:null}));
+});
+test('skipping a planned grocery duty cancels help/reminders; enabling it restores a valid shopper without giving credit',()=>{
+ let g=plan(group(),new Date('2026-10-18T06:00Z'));
+ g=act(g,'item',{text:'Chicken',urgency:'next'});
+ const b=g.state.batches[0],rice=structuredClone(g.state.rice),roles=structuredClone(b.roles),at=new Date('2026-10-18T06:30Z');
+ g=act(g,'help',{batch_id:b.id,role:'shopper'},now,b.roles.shopper!);
+ g=act(g,'groceries_needed',{batch_id:b.id,needed:false});
+ assert.equal(g.state.batches[0].roles.shopper,null);
+ assert.ok(!g.state.batches[0].help.includes('shopper'));
+ assert.ok(!mealReminders(g,at).some(n=>n.title.includes('Ingredients still needed')||n.body.startsWith('Groceries needs')));
+ assert.throws(()=>act(g,'help',{batch_id:b.id,role:'shopper'}));
+ assert.deepEqual(g.state.rice,rice);
+ assert.equal(g.state.batches[0].roles.cook,roles.cook);assert.equal(g.state.batches[0].roles.prep,roles.prep);
+ g=act(g,'groceries_needed',{batch_id:b.id,needed:true});
+ assert.ok(g.state.batches[0].roles.shopper);
+ assert.ok(mealReminders(g,at).some(n=>n.title.includes('Ingredients still needed')));
+ assert.equal(g.state.events.length,0);
 });

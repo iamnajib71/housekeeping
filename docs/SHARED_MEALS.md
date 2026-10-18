@@ -21,6 +21,12 @@ join the property through its existing tenant invitation flow.
 3. **Use one shopping list.** Add quantities as part of the item text. Mark items
    Bought or Already have. Neither action invents a grocery trip. Log the trip
    separately and select everyone who actually went; each gets credit.
+   Select **None — no grocery trip needed** when stocked up. Without a cooking
+   plan this applies to today; with a plan it applies to that cooking session.
+   The cooking-plan shopper dropdown also offers None. Grocery/help reminders
+   stop for that scope, while list items and completed trip credit are retained.
+   Switch back to Needed to restore an owner. A skipped day does not disable
+   shopping on future days or sessions.
 4. **Batch ready.** Once cooking and washing up are finished, this records the
    named cook and preparer and proposes the next batch for one day before the
    estimate runs out. A proposal needs dishes and a confirmed time; it is not

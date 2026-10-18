@@ -44,6 +44,8 @@ try{
  const planned=await post(a,home,{action:'plan',group_id:g.id,participants:ids,dishes:['Curry','Dal'],days:3,when});expect(planned.status()).toBe(200);g=await planned.json();
  expect(g.state.items).toHaveLength(2);expect(g.state.events.filter((e:{kind:string})=>e.kind==='grocery')).toHaveLength(1);
  expect(new Set(Object.values(g.state.batches[0].roles)).size).toBe(3);
+ const skipped=await post(a,home,{action:'groceries_needed',group_id:g.id,batch_id:g.state.batches[0].id,needed:false});expect(skipped.status()).toBe(200);g=await skipped.json();
+ expect(g.state.batches[0].roles.shopper).toBeNull();expect(g.state.events.filter((e:{kind:string})=>e.kind==='grocery')).toHaveLength(1);
  const ready=await post(b,home,{action:'ready',group_id:g.id,batch_id:g.state.batches[0].id});expect(ready.status()).toBe(200);g=await ready.json();
  expect(g.state.batches.filter((b:{status:string})=>b.status==='ready')).toHaveLength(1);expect(g.state.batches.filter((b:{status:string})=>b.status==='planned')).toHaveLength(1);
  expect(g.state.events.filter((e:{kind:string})=>e.kind==='cook'||e.kind==='prep')).toHaveLength(2);

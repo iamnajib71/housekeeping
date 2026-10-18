@@ -1,10 +1,11 @@
 export type MealRole = 'cook'|'prep'|'shopper';
+export type MealRoles = {cook:string;prep:string;shopper:string|null};
 export const mealRoleNames:Record<MealRole,string>={cook:'Main cook',prep:'Prep & cleanup',shopper:'Groceries'};
-export type MealBatch={id:string;dishes:string[];when:string;confirmed:boolean;status:'planned'|'ready'|'cancelled';roles:Record<MealRole,string>;participants:string[];days:2|3;ready_at?:string;food:'enough'|'low'|'finished';checked_on?:string;help:MealRole[]};
+export type MealBatch={id:string;dishes:string[];when:string;confirmed:boolean;status:'planned'|'ready'|'cancelled';roles:MealRoles;participants:string[];days:2|3;ready_at?:string;food:'enough'|'low'|'finished';checked_on?:string;help:MealRole[]};
 export type MealItem={id:string;text:string;status:'needed'|'bought'|'have';urgency:'next'|'soon'|'later';updated_by:string};
 export type MealEvent={id:string;kind:'cook'|'prep'|'grocery'|'rice';members:string[];on:string;recorded_at:string;actor:string;batch_id?:string;note?:string};
 export type RiceDuty={id:string;date:string;owner:string;due:string;done_at?:string;help:boolean};
-export type MealState={batches:MealBatch[];items:MealItem[];events:MealEvent[];rice:RiceDuty[];away:Record<string,string[]>;receipts:string[];rice_time:string;cook_time:string;reminders:boolean};
+export type MealState={batches:MealBatch[];items:MealItem[];events:MealEvent[];rice:RiceDuty[];away:Record<string,string[]>;receipts:string[];rice_time:string;cook_time:string;reminders:boolean;no_groceries_on?:string};
 export type MealGroup={id:string;household_id:number;name:string;member_ids:string[];created_by:string;created_at:string;version:number;state:MealState};
 export type MealCommand={action:string;request_id:string;[key:string]:unknown};
 const DAY=86400000;
@@ -29,21 +30,24 @@ function ranked(g:MealGroup,ids:string[],kind:MealEvent['kind'],turn=0){
   return mealCount(g,a,kind)-mealCount(g,b,kind)||last(a).localeCompare(last(b))||((g.member_ids.indexOf(a)-turn+g.member_ids.length)%g.member_ids.length)-((g.member_ids.indexOf(b)-turn+g.member_ids.length)%g.member_ids.length);
  });
 }
-export function suggestMealRoles(g:MealGroup,ids=g.member_ids):Record<MealRole,string>{
+export function suggestMealRoles(g:MealGroup,ids=g.member_ids,shoppingNeeded=true):MealRoles{
  if(ids.length<2)throw new Error('Choose at least two people for cooking.');
  const turn=g.state.batches.filter(b=>b.status==='ready').length;
  const load=(id:string)=>mealCount(g,id,'cook')*3+mealCount(g,id,'prep')*2+mealCount(g,id,'grocery');
- let best:Record<MealRole,string>|undefined,bestScore=Infinity;
+ let best:MealRoles|undefined,bestScore=Infinity;
  // Evaluate the team together: picking a shopper first can trap the same two
  // people in cooking when no shopping is needed. Actual joint trips count too.
- for(const cook of ids)for(const prep of ids.filter(id=>id!==cook))for(const shopper of ids.filter(id=>ids.length===2||(id!==cook&&id!==prep))){
-  const score=mealCount(g,cook,'cook')*20+mealCount(g,prep,'prep')*15+mealCount(g,shopper,'grocery')+load(cook)*3+load(prep)*2+load(shopper);
+ for(const cook of ids)for(const prep of ids.filter(id=>id!==cook))for(const shopper of (shoppingNeeded?ids.filter(id=>ids.length===2||(id!==cook&&id!==prep)):[null])){
+  const score=mealCount(g,cook,'cook')*20+mealCount(g,prep,'prep')*15+load(cook)*3+load(prep)*2+(shopper?mealCount(g,shopper,'grocery')+load(shopper):0);
   const distance=(id:string,slot:number)=>(g.member_ids.indexOf(id)-turn-slot+g.member_ids.length*10)%g.member_ids.length;
-  const tie=distance(cook,0)*100+distance(prep,1)*10+distance(shopper,2);
+  const tie=distance(cook,0)*100+distance(prep,1)*10+(shopper?distance(shopper,2):0);
   const total=score*10000+tie;
   if(total<bestScore){bestScore=total;best={cook,prep,shopper};}
  }
  return best!;
+}
+export function mealShoppingNeeded(g:MealGroup,batch:MealBatch|undefined,today:string){
+ return batch?batch.roles.shopper!==null&&!(g.state.no_groceries_on===today&&mealDate(new Date(batch.when))===today):g.state.no_groceries_on!==today;
 }
 export function ensureDailyRice(original:MealGroup,now=new Date()):MealGroup{
  const g=structuredClone(original),today=mealDate(now),available=g.member_ids.filter(id=>!g.state.away[today]?.includes(id));
@@ -70,12 +74,16 @@ export function applyMealCommand(original:MealGroup,actor:string,c:MealCommand,n
   case 'plan':{
    const participants=ids(c.participants,g.member_ids,2);
    if(!Array.isArray(c.dishes)||c.dishes.length<1||c.dishes.length>2)throw new Error('Enter one or two dishes.');
-   const dishes=c.dishes.map(d=>text(d,80)),roles=suggestMealRoles(g,participants);
-   for(const role of ['cook','prep','shopper'] as const)if(c[role]!==undefined)roles[role]=ids([c[role]],participants)[0];
-   if(roles.cook===roles.prep||(participants.length>=3&&new Set(Object.values(roles)).size!==3))throw new Error('Give each person a different role.');
+   const cookingTime=when(c.when,now);
+   const shoppingNeeded=c.shopper!==null&&!(c.shopper===undefined&&s.no_groceries_on===mealDate(new Date(cookingTime)));
+   const dishes=c.dishes.map(d=>text(d,80)),roles=suggestMealRoles(g,participants,shoppingNeeded);
+   for(const role of ['cook','prep'] as const)if(c[role]!==undefined)roles[role]=ids([c[role]],participants)[0];
+   if(c.shopper!==undefined&&c.shopper!==null)roles.shopper=ids([c.shopper],participants)[0];
+   if(c.shopper&&s.no_groceries_on===mealDate(new Date(cookingTime)))delete s.no_groceries_on;
+   if(roles.cook===roles.prep||(roles.shopper&&participants.length>=3&&new Set(Object.values(roles)).size!==3))throw new Error('Give each person a different role.');
    if(c.days!==2&&c.days!==3)throw new Error('Choose two or three days.');
    const existing=s.batches.find(b=>b.status==='planned');
-   const b:MealBatch={id:existing?.id||c.request_id,dishes,when:when(c.when,now),confirmed:true,status:'planned',roles,participants,days:c.days,food:'enough',help:[]};
+   const b:MealBatch={id:existing?.id||c.request_id,dishes,when:cookingTime,confirmed:true,status:'planned',roles,participants,days:c.days,food:'enough',help:[]};
    if(existing)s.batches[s.batches.indexOf(existing)]=b;else s.batches.push(b);
    break;
   }
@@ -105,6 +113,16 @@ export function applyMealCommand(original:MealGroup,actor:string,c:MealCommand,n
    const item=s.items.find(i=>i.id===c.item_id);if(!item||!['needed','bought','have'].includes(String(c.status)))throw new Error('Choose a valid shopping item.');
    item.status=c.status as MealItem['status'];item.updated_by=actor;break;
   }
+  case 'groceries_needed':{
+   if(typeof c.needed!=='boolean')throw new Error('Choose whether a grocery trip is needed.');
+   if(c.batch_id){
+    const b=batch();if(b.status!=='planned')throw new Error('Only upcoming grocery duties can be changed.');
+    b.roles.shopper=c.needed?(b.participants.filter(id=>id!==b.roles.cook&&id!==b.roles.prep)[0]||suggestMealRoles(g,b.participants).shopper):null;
+    b.help=b.help.filter(role=>role!=='shopper');
+    if(c.needed&&s.no_groceries_on===mealDate(new Date(b.when)))delete s.no_groceries_on;
+   }else if(c.needed)delete s.no_groceries_on;else s.no_groceries_on=today;
+   break;
+  }
   case 'trip':event('grocery',ids(c.members,g.member_ids),date(c.on,today),undefined,typeof c.note==='string'?text(c.note,300):undefined);break;
   case 'rice_done':{
    const r=s.rice.find(r=>r.id===c.rice_id);if(!r||r.done_at)throw new Error('This rice duty is unavailable or already done.');
@@ -115,7 +133,7 @@ export function applyMealCommand(original:MealGroup,actor:string,c:MealCommand,n
    if(c.take===true){if(!r.help)throw new Error('Ask the rice owner to request help first.');if(s.away[today]?.includes(actor))throw new Error('Mark yourself as joining meals first.');r.owner=actor;r.help=false;}else {if(r.owner!==actor)throw new Error('Only the rice owner can request help.');r.help=true;}break;
   }
   case 'help':{
-   const b=batch(),role=c.role as MealRole;if(b.status!=='planned'||!['cook','prep','shopper'].includes(role))throw new Error('Choose a planned duty.');
+   const b=batch(),role=c.role as MealRole;if(b.status!=='planned'||!['cook','prep','shopper'].includes(role)||!b.roles[role]||(role==='shopper'&&!mealShoppingNeeded(g,b,today)))throw new Error('Choose an active planned duty.');
    if(c.take===true){
     if(!b.help.includes(role))throw new Error('Ask the current owner to request a swap first.');
     if(Object.values(b.roles).includes(actor))throw new Error('You already have a duty. Agree new roles using Confirm cooking plan.');
@@ -159,8 +177,8 @@ export function mealReminders(g:MealGroup,now=new Date()):MealReminder[]{
    for(const role of ['cook','prep'] as const)add(`${next.id}:${next.when}:${role}:${late?'late':'soon'}`,[next.roles[role]],late?'Cooking still unconfirmed':mealRoleNames[role]+' soon',late?'The batch is not marked ready yet. Update it or request help.':'Your cooking session starts within an hour. Check ingredients and your partner.');
    if(remaining < -1800000)add(next.id+':support:'+next.when,g.member_ids,'Does the cooking pair need help?','The planned batch is still unconfirmed after its cooking time. Check in or update the plan.');
   }
-  if(next.confirmed&&remaining<=2*3600000&&remaining>-DAY&&g.state.items.some(i=>i.status==='needed'&&i.urgency!=='later'))add(next.id+':shopping:'+next.when,[next.roles.shopper],'Ingredients still needed','There are missing ingredients before the next cook. Update the shopping list or ask for help.');
-  for(const role of next.help)add(next.id+':help:'+role,g.member_ids.filter(id=>id!==next.roles[role]),'A meal duty needs help',mealRoleNames[role]+' needs a swap. Open the group to agree who can take over.');
+  if(next.roles.shopper&&mealShoppingNeeded(g,next,today)&&next.confirmed&&remaining<=2*3600000&&remaining>-DAY&&g.state.items.some(i=>i.status==='needed'&&i.urgency!=='later'))add(next.id+':shopping:'+next.when,[next.roles.shopper],'Ingredients still needed','There are missing ingredients before the next cook. Update the shopping list or ask for help.');
+  for(const role of next.help.filter(role=>role!=='shopper'||mealShoppingNeeded(g,next,today)))add(next.id+':help:'+role,g.member_ids.filter(id=>id!==next.roles[role]),'A meal duty needs help',mealRoleNames[role]+' needs a swap. Open the group to agree who can take over.');
  }
  const rice=g.state.rice.find(r=>r.date===today&&!r.done_at);
  if(rice){
