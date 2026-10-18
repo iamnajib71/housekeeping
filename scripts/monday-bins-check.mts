@@ -12,6 +12,8 @@ let me=owner;
 const browser=await chromium.launch(),page=await browser.newPage({viewport:{width:390,height:844}});
 const errors:string[]=[],writes:string[]=[];
 page.on('pageerror',e=>errors.push(e.message));
+await page.addInitScript(()=>localStorage.setItem('housekeeping-phone-later',String(Date.now()+86400000)));
+await page.route('**/api/account',r=>r.fulfill({json:{ok:true,homes:[]}}));
 await page.route('**/api/dashboard',r=>r.fulfill({json:{me,members:testMembers,settings:defaultSettings,assignments,submissions:[],today}}));
 await page.route('**/api/assignments/*',r=>{if(r.request().method()!=='GET')writes.push(r.request().method());return r.fulfill({json:{submissions:[],photos:[]}});});
 try{
@@ -20,9 +22,13 @@ try{
     await page.goto(base+'/app',{waitUntil:'networkidle'});
     const summary=page.locator('.deep-summary');
     await expect(summary.getByLabel('Monday bin responsibility')).toContainText(`Changing the household bins: ${owner.name}`);
-    await expect(summary.locator('.area').filter({hasText:'Bins'})).toContainText(`Assigned to ${owner.name}`);
+    await expect(summary.locator('.assigned-duty-group').filter({has:page.getByRole('heading',{name:new RegExp(owner.name)})}).locator('li')).toContainText([MONDAY_BIN_TASK]);
     await page.getByRole('button',{name:'Open my task',exact:true}).click();
     const dialog=page.getByRole('dialog');
+    await expect(dialog.getByRole('button',{name:'Upload photos',exact:true})).toBeEnabled();
+    await expect(dialog.getByRole('button',{name:'Take a photo',exact:true})).toBeEnabled();
+    await expect(dialog.locator('input[type=file][multiple]')).toHaveAttribute('accept','image/*');
+    await expect(dialog.locator('input[type=file][capture]')).toHaveAttribute('capture','environment');
     await expect(dialog.getByLabel('Monday bin responsibility')).toContainText(owner.name);
     await expect(dialog.getByRole('checkbox',{name:MONDAY_BIN_TASK,exact:true})).toHaveCount(id===owner.id?1:0);
     if(id===owner.id){

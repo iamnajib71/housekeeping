@@ -6,7 +6,7 @@ const base=process.env.CHECK_BASE_URL||'http://localhost:3011',today='2026-10-18
 let me=testMembers[0];
 const id=randomUUID(),first=ensureDailyRice({id,household_id:1,name:'Dinner group',member_ids:testMembers.slice(0,3).map(m=>m.id),created_by:me.id,created_at:now.toISOString(),version:0,state:emptyMealState()},now);
 let groups:MealGroup[]=[applyMealCommand(first,me.id,{action:'trip',request_id:randomUUID(),members:first.member_ids.slice(1),on:today},now)];
-const browser=await chromium.launch(),page=await browser.newPage({viewport:{width:1280,height:900}}),errors:string[]=[];
+const browser=await chromium.launch(),page=await browser.newPage({viewport:{width:1280,height:900},colorScheme:process.env.CHECK_COLOR_SCHEME==='dark'?'dark':'light'}),errors:string[]=[];
 await page.clock.setFixedTime(now);
 page.on('pageerror',e=>errors.push(e.message));
 await page.addInitScript(()=>localStorage.setItem('housekeeping-phone-later',String(Date.now()+86400000)));
@@ -62,6 +62,7 @@ try{
  await trip.getByRole('checkbox',{name:testMembers[1].name,exact:true}).check();
  await trip.getByRole('button',{name:'Save grocery trip',exact:true}).click();
  await expect(page.locator('.meal-trip-receipt')).toContainText(testMembers[0].name+' & '+testMembers[1].name);
+ await page.evaluate(()=>window.scrollTo(0,0));
  await page.screenshot({path:'.local/meals-desktop.png',fullPage:true});
  await page.getByRole('button',{name:'New group',exact:true}).click();
  const create=page.getByRole('heading',{name:'Start a meal group'}).locator('..');

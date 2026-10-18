@@ -11,6 +11,8 @@ const plan=weeklyTaskPlan(assignment,[assignment,future],[]);
 let own:Submission|undefined={id:'test-sub',assignment_id:assignment.id,member_id:members[0].id,tasks:plan[members[0].id],notes:'',status:'submitted',submitted_at:'2026-10-05T02:37:58Z',review_note:'',task_feedback:[]};
 let partner:Submission|undefined;
 const browser=await chromium.launch(),page=await browser.newPage({viewport:{width:390,height:844}});const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
+await page.addInitScript(()=>localStorage.setItem('housekeeping-phone-later',String(Date.now()+86400000)));
+await page.route('**/api/account',r=>r.fulfill({json:{ok:true,homes:[]}}));
 await page.route('**/api/dashboard',r=>r.fulfill({json:{me:members[0],members,settings:defaultSettings,assignments:[assignment,future],submissions:[own,partner].filter(Boolean),today:'2026-10-05'}}));
 await page.route('**/api/assignments/*',r=>r.fulfill({json:{submissions:[own,partner].filter(Boolean),photos:[]}}));
 try{
