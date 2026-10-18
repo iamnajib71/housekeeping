@@ -61,3 +61,17 @@ Initial proof and submission remain open through the cleaning date and until
 Late label based on the real submission timestamp. Yesterday's pending clean
 stays on the dashboard during that window. Admin-requested fixes remain
 actionable afterward; admins can record an exceptional late entry.
+
+## Meals: low-effort daily use
+
+Keep rice, current food and the next cooking pair visible. Collapse secondary
+shopping records, fair-share history and group settings. Ingredients use one
+availability check; a grocery trip is recorded separately and can credit more
+than one person. Preserve a no-trip choice and keep all records private to the
+meal group. Display clock times as 10pm or 12:30pm, using Melbourne time.
+
+Meal email and enabled push reminders use the existing cloud worker: rice
+30 minutes before, cooking and prep one hour before, and missing groceries two
+hours before a confirmed cook. Unfinished duties receive follow-ups. Recheck
+ownership/completion before delivery, deduplicate deliveries and observe
+10pm–8am quiet hours. Suggested cooking sessions need a confirmation reminder.

@@ -1,3 +1,5 @@
+import { formatLocalDateTime } from './display-time';
+
 export type MealRole = 'cook'|'prep'|'shopper';
 export type MealRoles = {cook:string;prep:string;shopper:string|null};
 export const mealRoleNames:Record<MealRole,string>={cook:'Main cook',prep:'Prep & cleanup',shopper:'Groceries'};
@@ -171,19 +173,19 @@ export function mealReminders(g:MealGroup,now=new Date()):MealReminder[]{
  if(current&&current.checked_on!==today&&today>=mealAddDays(mealDate(new Date(current.ready_at!)),current.days-1))add('food:'+current.id+':'+today,g.member_ids,'Check the food','Is there enough food left? Tap to check the batch and next cooking plan.');
  if(next){
   const remaining=Date.parse(next.when)-now.getTime();
-  if(!next.confirmed&&remaining<=DAY&&remaining>-DAY)add('confirm:'+next.id,g.member_ids,'Confirm the next cook','Choose the dishes and confirm a time for the suggested cooking pair.');
+  if(!next.confirmed&&remaining<=DAY&&remaining>-DAY)add('confirm:'+next.id,g.member_ids,'Confirm the next cook','Suggested for '+formatLocalDateTime(next.when)+'. Choose the dishes and confirm a time for the cooking pair.');
   if(next.confirmed&&remaining<=3600000&&remaining>-DAY){
    const late=remaining<0;
-   for(const role of ['cook','prep'] as const)add(`${next.id}:${next.when}:${role}:${late?'late':'soon'}`,[next.roles[role]],late?'Cooking still unconfirmed':mealRoleNames[role]+' soon',late?'The batch is not marked ready yet. Update it or request help.':'Your cooking session starts within an hour. Check ingredients and your partner.');
+   for(const role of ['cook','prep'] as const)add(`${next.id}:${next.when}:${role}:${late?'late':'soon'}`,[next.roles[role]],late?'Cooking not marked ready':mealRoleNames[role]+' soon','Your role: '+mealRoleNames[role]+'. Cooking time: '+formatLocalDateTime(next.when)+' (Melbourne time). '+(late?'The batch is not marked ready yet. Update it or request help.':'Check ingredients and your partner.'));
    if(remaining < -1800000)add(next.id+':support:'+next.when,g.member_ids,'Does the cooking pair need help?','The planned batch is still unconfirmed after its cooking time. Check in or update the plan.');
   }
-  if(next.roles.shopper&&mealShoppingNeeded(g,next,today)&&next.confirmed&&remaining<=2*3600000&&remaining>-DAY&&g.state.items.some(i=>i.status==='needed'&&i.urgency!=='later'))add(next.id+':shopping:'+next.when,[next.roles.shopper],'Ingredients still needed','There are missing ingredients before the next cook. Update the shopping list or ask for help.');
+  if(next.roles.shopper&&mealShoppingNeeded(g,next,today)&&next.confirmed&&remaining<=2*3600000&&remaining>-DAY&&g.state.items.some(i=>i.status==='needed'&&i.urgency!=='later'))add(next.id+':shopping:'+next.when,[next.roles.shopper],'Ingredients still needed','Get the missing ingredients before cooking at '+formatLocalDateTime(next.when)+' (Melbourne time). Check the shopping list or ask for help.');
   for(const role of next.help.filter(role=>role!=='shopper'||mealShoppingNeeded(g,next,today)))add(next.id+':help:'+role,g.member_ids.filter(id=>id!==next.roles[role]),'A meal duty needs help',mealRoleNames[role]+' needs a swap. Open the group to agree who can take over.');
  }
  const rice=g.state.rice.find(r=>r.date===today&&!r.done_at);
  if(rice){
   const remaining=Date.parse(rice.due)-now.getTime();
-  if(remaining<=1800000)add(rice.id+':'+rice.owner+':'+(remaining<0?'late':'soon'),[rice.owner],remaining<0?'Rice still unconfirmed':'Time to start rice','You own today’s rice. Mark it done after cooking, or request help.');
+  if(remaining<=1800000)add(rice.id+':'+rice.owner+':'+(remaining<0?'late':'soon'),[rice.owner],remaining<0?'Rice still unconfirmed':'Time to start rice','You own today’s rice, due '+formatLocalDateTime(rice.due)+' (Melbourne time). Mark it done after cooking, or request help.');
   if(rice.help)add(rice.id+':help:'+rice.owner,g.member_ids.filter(id=>id!==rice.owner),'Rice duty needs help','Today’s rice owner has requested help. Tap to take over.');
  }
  // A food check may qualify through more than one condition.

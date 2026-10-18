@@ -78,3 +78,15 @@ The dashboard summary and future-assignment preview use the same WeeklyDuties
 component and weeklyTaskPlan result. Display exact duties under each person,
 including the full description. A shared room label must never imply both
 people own its whole checklist. Explain split rooms explicitly.
+
+## Compact controls and populated states
+
+Check populated meal groups and expanded forms as well as empty states. Labelled
+selects align with adjacent controls at the field edge, using 44px touch targets.
+Use content-sized grid columns so tablet cards do not squeeze long duties.
+Meal group management lives behind one options control. Shopping, contributions
+and reminder settings use disclosures with useful summaries. The shopping list
+has one ingredient field and one availability checkbox per item; logging a trip
+remains separate so checking ingredients never falsely credits a grocery trip.
+Clock labels use 12-hour am/pm, including dropdown choices. Stored wall times
+remain unchanged. Expanded forms must remain reachable and fit at 320px.

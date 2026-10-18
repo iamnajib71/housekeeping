@@ -150,3 +150,16 @@ test('skipping a planned grocery duty cancels help/reminders; enabling it restor
  assert.ok(mealReminders(g,at).some(n=>n.title.includes('Ingredients still needed')));
  assert.equal(g.state.events.length,0);
 });
+
+
+test('cooking reminders target cook and prep, follow role swaps and stop after batch ready',()=>{
+ const at=new Date('2026-10-18T06:00Z');let g=plan(group(),at);
+ const b=g.state.batches[0],soon=new Date(at.getTime()+30*60000);
+ const notices=mealReminders(g,soon).filter(n=>n.title.includes('soon'));
+ assert.deepEqual(new Set(notices.map(n=>n.member_id)),new Set([b.roles.cook,b.roles.prep]));
+ assert.equal(notices.length,2);
+ g=act(g,'plan',{participants:g.member_ids,dishes:b.dishes,when:b.when,days:3,cook:'c',prep:'b',shopper:null},soon);
+ assert.deepEqual(new Set(mealReminders(g,soon).filter(n=>n.title.includes('soon')).map(n=>n.member_id)),new Set(['c','b']));
+ g=act(g,'ready',{batch_id:b.id},soon);
+ assert.ok(!mealReminders(g,soon).some(n=>n.title.includes('soon')||n.title.includes('not marked ready')));
+});
