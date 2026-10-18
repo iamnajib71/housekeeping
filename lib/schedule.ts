@@ -132,6 +132,6 @@ export function reminderTypes(date: string, today: string, hour: number, setting
   if (date === addDays(today, 1) && hour >= settings.evening_hour) return ['tomorrow'];
   if (date === today && hour >= settings.deadline_hour) return ['overdue'];
   if (date === today && hour >= settings.morning_hour) return ['today'];
-  if (date === addDays(today, -1)) return ['overdue'];
+  if (date === addDays(today, -1) && hour < 12) return ['overdue'];
   return [];
 }

@@ -151,7 +151,7 @@ try {
     await page.goto(base + '/app', { waitUntil: 'networkidle' });
     await expect(page.getByRole('heading', { name: 'Today at home', exact: true })).toBeVisible();
     await fits();
-    expect(await page.locator('.your-turn').evaluate(el => getComputedStyle(el).backgroundColor)).toBe('rgb(27, 48, 43)');
+    expect(await page.locator('.your-turn').evaluate(el => getComputedStyle(el).backgroundColor)).toBe('rgb(32, 35, 41)');
     expect(await page.locator('.your-turn .button.primary').evaluate(el => getComputedStyle(el).backgroundColor)).toBe('rgb(123, 216, 183)');
     await page.screenshot({ path: `.local/design-dark-overview-${width}.png`, fullPage: true });
     for (const nav of ['Shared meals', 'Our household', 'Cleaning history', 'Household settings', 'Household QR code']) {

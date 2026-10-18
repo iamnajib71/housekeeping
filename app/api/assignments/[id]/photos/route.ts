@@ -1,9 +1,10 @@
-import { ApiError,bodyJson,checkOrigin,failure,getAssignment,ok,requireMember } from '@/lib/server';
+import { ApiError,bodyJson,checkOrigin,failure,getAssignment,ok,requireMember,requireOpenSubmission } from '@/lib/server';
 export const maxDuration=60;
 export async function POST(request:Request,{params}:{params:Promise<{id:string}>}){
  try{
   checkOrigin(request);const {db,member}=await requireMember();const a=await getAssignment(db,(await params).id,member.household_id);
   if(!a.member_ids.includes(member.id))throw new ApiError('You can only upload proof for your assigned clean.',403);
+  await requireOpenSubmission(db,a,member.id);
   if(Number(request.headers.get('content-length')||0)>1.1*1024*1024)throw new ApiError('Upload one compressed photo at a time.',413);
   const form=await request.formData(),file=form.get('photo');
   if(!(file instanceof File)||file.type!=='image/jpeg'||file.size>1048576||file.size<4)throw new ApiError('Choose a JPEG photo under 1 MB.');

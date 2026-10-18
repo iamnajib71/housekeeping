@@ -53,3 +53,11 @@ credentials do not belong in public design examples.
 2. Make ownership and completion unambiguous.
 3. Keep routine updates short, with details available when needed.
 4. Preserve privacy boundaries and completed work across upgrades.
+
+## Submission timing
+
+Initial proof and submission remain open through the cleaning date and until
+12 PM the following day in Melbourne time. After-midnight submissions show a
+Late label based on the real submission timestamp. Yesterday's pending clean
+stays on the dashboard during that window. Admin-requested fixes remain
+actionable afterward; admins can record an exceptional late entry.

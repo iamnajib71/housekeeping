@@ -40,6 +40,9 @@ input[type=checkbox], input[type=radio] { padding: 0; }
 .badge.green { color: #176445; background: #def3e7; }
 .badge.amber { color: #795113; background: #fff2d5; }
 .badge.red { color: #9b3044; background: #ffebef; }
+.badge-pair { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.late-hint { font-size: 13px; color: #795113; margin-bottom: 14px; }
+.notice.late-notice { background: #fff2d5; color: #795113; margin: 14px 0; }
 .notice { color: #365e56; background: #edf5f1; }
 .notice.error, .error { color: #a02b41; }
 .success { color: #176445; }
@@ -450,30 +453,30 @@ input[type=checkbox], input[type=radio] { padding: 0; }
 html { color-scheme: light; }
 html[data-theme=dark] {
   color-scheme: dark;
-  --bg: #122421;
-  --white: #1b302b;
-  --ink: #deebe4;
-  --navy: #f0f8f3;
-  --muted: #aec3b7;
-  --line: #375046;
+  --bg: #15171c;
+  --white: #202329;
+  --ink: #e8eaf0;
+  --navy: #f5f6fa;
+  --muted: #b0b7c3;
+  --line: #3a404a;
   --blue: #7bd8b7;
   --blue-dark: #a1e5ce;
-  --soft: #29483b;
-  --nav-bg: #102d28;
+  --soft: #2a2f38;
+  --nav-bg: #14171d;
 }
 html[data-theme=dark] ::selection { background: #386e56; color: #fff; }
 html[data-theme=dark] :is(.card, .topbar, .stat-grid, .login-card, .dialog-header, .dialog-body, .dialog-footer, .task-dialog, .mobile-tabs, .phone-setup-card, .phone-setup-launch, .skip-link) { background: var(--white); color: var(--ink); border-color: var(--line); }
-html[data-theme=dark] :is(.button, input, select, textarea) { background: #213b31; border-color: #5e7a68; color: var(--ink); }
-html[data-theme=dark] :is(.meal-workspace, .account-card, .invite-card) :is(input, select, textarea) { background: #213b31; border-color: #5e7a68; color: var(--ink); }
-html[data-theme=dark] input::placeholder, html[data-theme=dark] textarea::placeholder { color: #b2c6b8; }
-html[data-theme=dark] :is(.button:hover:not(:disabled), .icon-button:hover, .theme-toggle:hover) { background: #304f3f; }
+html[data-theme=dark] :is(.button, input, select, textarea) { background: #292e37; border-color: #596170; color: var(--ink); }
+html[data-theme=dark] :is(.meal-workspace, .account-card, .invite-card) :is(input, select, textarea) { background: #292e37; border-color: #596170; color: var(--ink); }
+html[data-theme=dark] input::placeholder, html[data-theme=dark] textarea::placeholder { color: #b4bcc8; }
+html[data-theme=dark] :is(.button:hover:not(:disabled), .icon-button:hover, .theme-toggle:hover) { background: #343b46; }
 html[data-theme=dark] .button.primary { background: #7bd8b7; border-color: #7bd8b7; color: #12372b; }
 html[data-theme=dark] .button.primary:hover:not(:disabled) { background: #a1e5ce; }
 html[data-theme=dark] :is(.task-list > div, .assignment-copy span, .stat-card small, .stat-card > div > span, .muted-number, .turn-heading p, .bottom-note, .rotation-people span:not(.avatar), .rotation-rule p, .rotation-note, .meal-card small, .meal-group-heading, .phone-setup-title p, .phone-setup-step small, .phone-setup-help, .property-address, .signup-options small) { color: var(--muted); }
-html[data-theme=dark] :is(.rotation-card, .meal-rice, .notice, .walkthrough-guide, .walkthrough-area, .daily-deep-summary, .partner-plan, .submission-notes, .task-icon, .date-square, .small-icon, .bin-icon) { background: #263e31; color: #d2e7d7; border-color: var(--line); }
+html[data-theme=dark] :is(.rotation-card, .meal-rice, .notice, .walkthrough-guide, .walkthrough-area, .daily-deep-summary, .partner-plan, .submission-notes, .task-icon, .date-square, .small-icon, .bin-icon) { background: #2b3039; color: #e0e5ec; border-color: var(--line); }
 html[data-theme=dark] :is(.notice.error, .error, .fix-list, .rejection-note) { color: #ffb3bc; }
 html[data-theme=dark] :is(.fix-list, .rejection-note) { background: #462d32; border-color: #78464e; }
-html[data-theme=dark] .badge { color: #c8d9cc; background: #354b3e; }
+html[data-theme=dark] .badge { color: #d2d8e2; background: #3a414c; }
 html[data-theme=dark] :is(.badge.green, .badge.blue, .you-label) { color: #b1edcb; background: #284e38; }
 html[data-theme=dark] .badge.amber { color: #f6dc9a; background: #53462b; }
 html[data-theme=dark] .badge.red { color: #ffc5cd; background: #59333b; }
@@ -485,14 +488,23 @@ html[data-theme=dark] :is(.today .day-number, .today .day-name, .task-icon, .are
 html[data-theme=dark] .empty-check { border-color: #78947f; }
 html[data-theme=dark] .empty-check.completed { background: var(--blue); color: #12372b; border-color: var(--blue); }
 html[data-theme=dark] :is(.checklist, .task-list) input { accent-color: #7bd8b7; }
-html[data-theme=dark] .task-progress > div { background: #3b5545; }
+html[data-theme=dark] .task-progress > div { background: #414a57; }
 html[data-theme=dark] .brand-icon { color: #edf9f1; background: #286753; }
-html[data-theme=dark] .login-story { background: #103d3b; }
+html[data-theme=dark] .login-story { background: #191d24; }
 html[data-theme=dark] .login-story .login-headline { color: #f5fbf7; }
 html[data-theme=dark] .login-story > p, html[data-theme=dark] .login-features small { color: #c9e0d5; }
 html[data-theme=dark] .login-features > span { color: #eef9f2; }
-html[data-theme=dark] :is(.welcome-icon, .home-controls select, .phone-setup-title > span, .setup-page pre, .setup-page code) { background: #2b4837; color: #c4ebd3; }
+html[data-theme=dark] :is(.welcome-icon, .home-controls select, .phone-setup-title > span, .setup-page pre, .setup-page code) { background: #2d343e; color: #d3e1ee; }
 html[data-theme=dark] .phone-setup-step b { color: var(--ink); }
 html[data-theme=dark] .date-square.purple { color: #d7c6f1; background: #41354e; }
 html[data-theme=dark] .photo-grid > div > button { background: #18352b; color: white; }
 html[data-theme=dark] .qr-print img { background: white; border-radius: 8px; }
+
+html[data-theme=dark] .sidebar .house-label { background: #252a32; }
+html[data-theme=dark] .sidebar :is(.house-label small, .profile small, .nav-caption) { color: #b0b7c3; }
+html[data-theme=dark] .sidebar nav button, html[data-theme=dark] .nav-bottom { color: #ccd2dc; }
+html[data-theme=dark] .sidebar .profile { border-color: #3a404a; }
+html[data-theme=dark] .rotation-card { background: #282d35; }
+html[data-theme=dark] .meal-rice { background: #282d35; }
+html[data-theme=dark] .late-hint { color: #f6dc9a; }
+html[data-theme=dark] .notice.late-notice { background: #53462b; color: #f6dc9a; }

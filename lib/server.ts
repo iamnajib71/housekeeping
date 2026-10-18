@@ -6,6 +6,7 @@ import { NextResponse } from 'next/server';
 import { timingSafeEqual } from 'node:crypto';
 import type { Assignment, Member, Settings } from './types';
 import { addDays, generateSchedule, localClock } from './schedule';
+import { canSubmitInWindow, submissionWindow } from './submission-window';
 export class ApiError extends Error { constructor(message: string, public status = 400) { super(message); } }
 export function database() {
  const url=process.env.NEXT_PUBLIC_SUPABASE_URL,key=process.env.SUPABASE_SECRET_KEY;
@@ -64,6 +65,15 @@ export async function ensureSchedule(db=database(),settings?:Settings,members?:M
 export async function getAssignment(db:ReturnType<typeof database>,id:string,household=1):Promise<Assignment>{
  if(!/^(?:\d+-)?(daily|weekly)-\d{4}-\d{2}-\d{2}$/.test(id))throw new ApiError('Assignment not found.',404);
  const {data,error}=await db.from('assignments').select('*').eq('id',id).eq('household_id',household).maybeSingle();if(error)throw error;if(!data)throw new ApiError('Assignment not found.',404);return data;
+}
+export async function requireOpenSubmission(db:ReturnType<typeof database>,assignment:Assignment,member:string) {
+ const {data,error}=await db.from('submissions').select('status').eq('assignment_id',assignment.id).eq('member_id',member).maybeSingle();
+ if(error)throw error;
+ const window=submissionWindow(assignment.date,data?.status);
+ if(canSubmitInWindow(window))return;
+ if(window==='future')throw new ApiError('Uploads and submission open on the cleaning date.');
+ if(window==='submitted')throw new ApiError('This submission is locked.');
+ throw new ApiError('The late submission window closed at noon the following day (Melbourne time). Ask your admin to record a late entry.',409);
 }
 export function ok(value:unknown){return NextResponse.json(value,{headers:{'Cache-Control':'private, no-store'}});}
 export function failure(error:unknown){

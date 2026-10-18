@@ -7,7 +7,7 @@ type Theme = 'light' | 'dark';
 const key = 'housekeeping-theme';
 function apply(theme: Theme) {
   document.documentElement.dataset.theme = theme;
-  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#142b27' : '#103d3b');
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#15171c' : '#103d3b');
 }
 
 export function ThemeToggle() {

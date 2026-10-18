@@ -12,6 +12,6 @@ export async function GET(){
   let health;
   if(member.role==='admin'&&home===1){const {data,error}=await db.from('worker_health').select('*').eq('id',1).single();if(error)throw error;health=data;}
   const {data:household,error:homeError}=await db.from('households').select('id,name,address').eq('id',home).single();if(homeError)throw homeError;
-  return ok({me:member,members:members.map(m=>member.role==='admin'?m:{...m,email:undefined,user_id:undefined}),household,settings,assignments,submissions:sanitized,today,health});
+  return ok({me:member,members:members.map(m=>member.role==='admin'?m:{...m,email:undefined,user_id:undefined}),household,settings,assignments,submissions:sanitized,today,server_now:new Date().toISOString(),health});
  }catch(e){return failure(e);}
 }

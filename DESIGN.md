@@ -69,7 +69,7 @@ The theme toggle appears on all routes. The device preference is stored in
 localStorage under housekeeping-theme and applied in the document head before
 paint. Without an explicit preference, follow the operating system. Never
 cache household responses or proof as part of theme persistence. Dark mode uses
-forest surfaces and light mint actions with dark text, preserving semantic
+neutral charcoal surfaces and light teal actions with dark text, preserving semantic
 status colors, readable form controls and a white QR-code background.
 
 ## Monday ownership consistency
