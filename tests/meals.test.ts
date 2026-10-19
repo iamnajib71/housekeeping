@@ -48,6 +48,33 @@ test('rice absence reassigns pending work but does not rewrite completed work',(
  let all=ensureDailyRice(group(),now);for(const id of all.member_ids)all=act(all,'away',{away:true},now,id);
  assert.equal(all.state.rice.length,0);
 });
+
+test('covering rice credits the actual person, records the original owner and stops reminders',()=>{
+ const at=new Date('2026-10-18T07:15Z');let g=ensureDailyRice(group(),at);
+ const rice=g.state.rice[0],original=rice.owner,cover=g.member_ids.find(id=>id!==original)!;
+ assert.ok(mealReminders(g,at).some(n=>n.member_id===original));
+ const c={action:'rice_done',rice_id:rice.id,take_credit:true,request_id:randomUUID()};
+ g=applyMealCommand(g,cover,c,at);
+ assert.equal(g.state.rice[0].owner,cover);
+ assert.equal(g.state.rice[0].assigned_owner,original);
+ assert.equal(g.state.rice[0].done_at,at.toISOString());
+ assert.equal(mealCount(g,cover,'rice'),1);
+ assert.equal(mealCount(g,original,'rice'),0);
+ assert.ok(!mealReminders(g,at).some(n=>n.key.startsWith(rice.id+':')));
+ assert.deepEqual(applyMealCommand(g,cover,c,at),g);
+ assert.throws(()=>act(g,'rice_done',{rice_id:rice.id,take_credit:true},at,original));
+ const next=ensureDailyRice(g,new Date('2026-10-19T03:00Z'));
+ assert.notEqual(next.state.rice.at(-1)!.owner,cover);
+});
+
+test('rice self credit cannot be spoofed, and older clients can still confirm the assigned person',()=>{
+ const g=ensureDailyRice(group(),now),rice=g.state.rice[0],cover=g.member_ids.find(id=>id!==rice.owner)!;
+ assert.throws(()=>act(g,'rice_done',{rice_id:rice.id,take_credit:'yes'},now,cover));
+ assert.throws(()=>act(g,'rice_done',{rice_id:rice.id,take_credit:true},now,'outsider'));
+ const old=act(g,'rice_done',{rice_id:rice.id},now,cover);
+ assert.equal(mealCount(old,rice.owner,'rice'),1);
+ assert.equal(mealCount(old,cover,'rice'),0);
+});
 test('request identifiers prevent duplicate credit and ready cannot be counted twice',()=>{
  let g=plan(group());const id=g.state.batches[0].id;
  const c={action:'ready',request_id:randomUUID(),batch_id:id};g=applyMealCommand(g,'a',c,now);

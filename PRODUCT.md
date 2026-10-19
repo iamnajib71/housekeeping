@@ -75,3 +75,8 @@ Meal email and enabled push reminders use the existing cloud worker: rice
 hours before a confirmed cook. Unfinished duties receive follow-ups. Recheck
 ownership/completion before delivery, deduplicate deliveries and observe
 10pm–8am quiet hours. Suggested cooking sessions need a confirmation reminder.
+
+If someone covers rice, “I put rice in the cooker” records the signed-in person
+as the contributor and preserves the original assignee. This counts once in
+rice fairness, stops the outstanding reminder and needs no prior help request.
+Confirming that an assigned person did it remains compatible with older clients.

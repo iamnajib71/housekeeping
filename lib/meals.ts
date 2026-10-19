@@ -6,7 +6,7 @@ export const mealRoleNames:Record<MealRole,string>={cook:'Main cook',prep:'Prep 
 export type MealBatch={id:string;dishes:string[];when:string;confirmed:boolean;status:'planned'|'ready'|'cancelled';roles:MealRoles;participants:string[];days:2|3;ready_at?:string;food:'enough'|'low'|'finished';checked_on?:string;help:MealRole[]};
 export type MealItem={id:string;text:string;status:'needed'|'bought'|'have';urgency:'next'|'soon'|'later';updated_by:string};
 export type MealEvent={id:string;kind:'cook'|'prep'|'grocery'|'rice';members:string[];on:string;recorded_at:string;actor:string;batch_id?:string;note?:string};
-export type RiceDuty={id:string;date:string;owner:string;due:string;done_at?:string;help:boolean};
+export type RiceDuty={id:string;date:string;owner:string;due:string;done_at?:string;help:boolean;assigned_owner?:string};
 export type MealState={batches:MealBatch[];items:MealItem[];events:MealEvent[];rice:RiceDuty[];away:Record<string,string[]>;receipts:string[];rice_time:string;cook_time:string;reminders:boolean;no_groceries_on?:string};
 export type MealGroup={id:string;household_id:number;name:string;member_ids:string[];created_by:string;created_at:string;version:number;state:MealState};
 export type MealCommand={action:string;request_id:string;[key:string]:unknown};
@@ -128,7 +128,10 @@ export function applyMealCommand(original:MealGroup,actor:string,c:MealCommand,n
   case 'trip':event('grocery',ids(c.members,g.member_ids),date(c.on,today),undefined,typeof c.note==='string'?text(c.note,300):undefined);break;
   case 'rice_done':{
    const r=s.rice.find(r=>r.id===c.rice_id);if(!r||r.done_at)throw new Error('This rice duty is unavailable or already done.');
-   r.done_at=at;r.help=false;event('rice',[r.owner],r.date);break;
+   if(c.take_credit!==undefined&&typeof c.take_credit!=='boolean')throw new Error('Choose who completed the rice duty.');
+   const covered=c.take_credit===true&&r.owner!==actor;
+   if(covered){r.assigned_owner=r.owner;r.owner=actor;}
+   r.done_at=at;r.help=false;event('rice',[r.owner],r.date,undefined,covered?'Put rice in the cooker, covering another member’s turn.':undefined);break;
   }
   case 'rice_help':{
    const r=s.rice.find(r=>r.id===c.rice_id);if(!r||r.done_at)throw new Error('This rice duty is already done.');

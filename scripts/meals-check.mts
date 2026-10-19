@@ -6,6 +6,8 @@ const base=process.env.CHECK_BASE_URL||'http://localhost:3011',today='2026-10-18
 let me=testMembers[0];
 const id=randomUUID(),first=ensureDailyRice({id,household_id:1,name:'Dinner group',member_ids:testMembers.slice(0,3).map(m=>m.id),created_by:me.id,created_at:now.toISOString(),version:0,state:emptyMealState()},now);
 let groups:MealGroup[]=[applyMealCommand(first,me.id,{action:'trip',request_id:randomUUID(),members:first.member_ids.slice(1),on:today},now)];
+// The signed-in member covers another member’s rice without waiting for a help request.
+groups[0].state.rice[0].owner=testMembers[1].id;
 const browser=await chromium.launch(),page=await browser.newPage({viewport:{width:1280,height:900},colorScheme:process.env.CHECK_COLOR_SCHEME==='dark'?'dark':'light'}),errors:string[]=[];
 await page.clock.setFixedTime(now);
 page.on('pageerror',e=>errors.push(e.message));
@@ -24,7 +26,7 @@ await page.route('**/api/meals',async r=>{
 });
 try{
  await page.goto(base+'/app?view=meals',{waitUntil:'networkidle'});
- await expect(page.getByLabel('Daily rice')).toContainText(testMembers[0].name);
+ await expect(page.getByLabel('Daily rice')).toContainText(testMembers[1].name);
  await expect(page.locator('.meal-trip-receipt')).toContainText(testMembers[1].name+' & '+testMembers[2].name);
  await page.locator('.meal-shopping > summary').click();
  await page.getByLabel('Grocery trip needed',{exact:true}).click();
@@ -66,8 +68,13 @@ try{
  await page.getByLabel('Grocery trip needed',{exact:true}).click();
  await expect(page.getByLabel('Grocery trip needed',{exact:true})).toBeChecked();
  await expect(page.getByLabel('Next cooking')).not.toContainText('None · no trip needed');
- await page.getByRole('button',{name:'Rice done',exact:true}).click();
+ await page.getByRole('button',{name:'I put rice in the cooker',exact:true}).click();
  await expect(page.getByLabel('Daily rice')).toContainText('Done');
+ await expect(page.getByLabel('Daily rice')).toContainText('Rice contribution credited to '+me.name);
+ await expect(page.getByLabel('Daily rice')).toContainText('Covered for '+testMembers[1].name);
+ const credited=groups.find(g=>g.id===id)!;
+ expect(credited.state.events.filter(e=>e.kind==='rice'&&e.members.includes(me.id))).toHaveLength(1);
+ expect(credited.state.events.filter(e=>e.kind==='rice'&&e.members.includes(testMembers[1].id))).toHaveLength(0);
  await page.getByText('Log a grocery trip · one or more people',{exact:true}).click();
  const trip=page.locator('.meal-trip-form');
  await trip.getByRole('checkbox',{name:testMembers[1].name,exact:true}).check();
