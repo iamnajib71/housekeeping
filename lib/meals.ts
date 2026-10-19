@@ -3,7 +3,7 @@ import { formatLocalDateTime } from './display-time';
 export type MealRole = 'cook'|'prep'|'shopper';
 export type MealRoles = {cook:string;prep:string;shopper:string|null};
 export const mealRoleNames:Record<MealRole,string>={cook:'Main cook',prep:'Prep & cleanup',shopper:'Groceries'};
-export type MealBatch={id:string;dishes:string[];when:string;confirmed:boolean;status:'planned'|'ready'|'cancelled';roles:MealRoles;participants:string[];days:2|3;ready_at?:string;food:'enough'|'low'|'finished';checked_on?:string;help:MealRole[]};
+export type MealBatch={id:string;dishes:string[];when:string;confirmed:boolean;status:'planned'|'ready'|'cancelled';roles:{cook:string;prep:string|null;shopper:string|null};participants:string[];days:2|3;ready_at?:string;food:'enough'|'low'|'finished';checked_on?:string;help:MealRole[];unplanned?:boolean;cooked_on?:string};
 export type MealItem={id:string;text:string;status:'needed'|'bought'|'have';urgency:'next'|'soon'|'later';updated_by:string};
 export type MealEvent={id:string;kind:'cook'|'prep'|'grocery'|'rice';members:string[];on:string;recorded_at:string;actor:string;batch_id?:string;note?:string};
 export type RiceDuty={id:string;date:string;owner:string;due:string;done_at?:string;help:boolean;assigned_owner?:string};
@@ -26,6 +26,8 @@ export function mealInstant(date:string,time:string){
 }
 export function emptyMealState():MealState{return {batches:[],items:[],events:[],rice:[],away:{},receipts:[],rice_time:'18:30',cook_time:'19:00',reminders:true};}
 export function mealCount(g:MealGroup,id:string,kind:MealEvent['kind']){return g.state.events.filter(e=>e.kind===kind&&e.members.includes(id)).length;}
+export function batchCookedDate(b:MealBatch){return b.cooked_on||mealDate(new Date(b.ready_at||b.when));}
+export function latestReadyBatch(g:MealGroup){return g.state.batches.filter(b=>b.status==='ready').sort((a,b)=>batchCookedDate(a).localeCompare(batchCookedDate(b))||Date.parse(a.ready_at||a.when)-Date.parse(b.ready_at||b.when)).at(-1);}
 function ranked(g:MealGroup,ids:string[],kind:MealEvent['kind'],turn=0){
  return [...ids].sort((a,b)=>{
   const last=(id:string)=>g.state.events.filter(e=>e.kind===kind&&e.members.includes(id)).at(-1)?.on||'';
@@ -73,6 +75,31 @@ export function applyMealCommand(original:MealGroup,actor:string,c:MealCommand,n
  const batch=()=>{const b=s.batches.find(b=>b.id===c.batch_id);if(!b)throw new Error('Choose an existing batch.');return b;};
  const event=(kind:MealEvent['kind'],members:string[],on=today,batch_id?:string,note?:string)=>s.events.push({id:c.request_id+':'+kind,kind,members,on,recorded_at:at,actor,...(batch_id?{batch_id}:{}),...(note?{note}:{})});
  switch(c.action){
+  case 'record_cook':{
+   const on=date(c.on??today,today),cook=ids([c.cook],g.member_ids)[0];
+   const prep=c.prep===undefined||c.prep===null?null:ids([c.prep],g.member_ids)[0];
+   const participants=ids(c.participants??g.member_ids,g.member_ids);
+   if(!Array.isArray(c.dishes)||c.dishes.length<1||c.dishes.length>2)throw new Error('Enter one or two dishes.');
+   const dishes=c.dishes.map(d=>text(d,80));
+   const signature=(values:string[])=>values.map(v=>v.trim().toLowerCase()).sort().join('\n');
+   if(new Set(dishes.map(d=>d.toLowerCase())).size!==dishes.length)throw new Error('Enter each dish once.');
+   if(s.batches.some(b=>b.status==='ready'&&b.roles.cook===cook&&batchCookedDate(b)===on&&signature(b.dishes)===signature(dishes)))throw new Error('This cook is already recorded. Check the existing batch.');
+   if(c.days!==2&&c.days!==3)throw new Error('Choose two or three days.');
+   // ready_at records entry time; cooked_on records the reported cooking date.
+   // No exact cooking time or unconfirmed helper is invented.
+   const b:MealBatch={id:c.request_id,dishes,when:at,ready_at:at,cooked_on:on,unplanned:true,confirmed:true,status:'ready',roles:{cook,prep,shopper:null},participants,days:c.days,food:'enough',checked_on:today,help:[]};
+   s.batches.push(b);
+   const note='Unplanned cook: '+dishes.join(' + ')+'.';
+   event('cook',[cook],on,b.id,note);if(prep)event('prep',[prep],on,b.id,note);
+   const pending=s.batches.find(b=>b.status==='planned');
+   // An agreed plan stays agreed. Only automatic suggestions are refreshed.
+   if(latestReadyBatch(g)?.id===b.id&&!pending?.confirmed){
+    if(pending)pending.status='cancelled';
+    const proposed=mealAddDays(on,c.days-1),nextDate=proposed<today?today:proposed;
+    s.batches.push({id:c.request_id+':next',dishes:[],when:mealInstant(nextDate,s.cook_time),confirmed:false,status:'planned',roles:suggestMealRoles(g),participants:[...g.member_ids],days:c.days,food:'enough',help:[]});
+   }
+   break;
+  }
   case 'plan':{
    const participants=ids(c.participants,g.member_ids,2);
    if(!Array.isArray(c.dishes)||c.dishes.length<1||c.dishes.length>2)throw new Error('Enter one or two dishes.');
@@ -90,7 +117,7 @@ export function applyMealCommand(original:MealGroup,actor:string,c:MealCommand,n
    break;
   }
   case 'ready':{
-   const b=batch();if(b.status!=='planned'||!b.confirmed||!b.dishes.length)throw new Error('Confirm the dishes and cooking plan first.');
+   const b=batch();if(b.status!=='planned'||!b.confirmed||!b.dishes.length||!b.roles.prep)throw new Error('Confirm the dishes and cooking plan first.');
    b.status='ready';b.ready_at=at;b.food='enough';b.checked_on=today;b.help=[];
    event('cook',[b.roles.cook],today,b.id);event('prep',[b.roles.prep],today,b.id);
    // A suggested next batch is visible immediately, but needs a time/dish confirmation.
@@ -101,7 +128,8 @@ export function applyMealCommand(original:MealGroup,actor:string,c:MealCommand,n
    const b=batch();if(b.status!=='ready'||!['enough','low','finished'].includes(String(c.food)))throw new Error('Choose the current food status.');
    b.food=c.food as MealBatch['food'];b.checked_on=today;
    const next=s.batches.find(b=>b.status==='planned');
-   if(next&&!next.confirmed&&b.food!=='enough'){
+   const latest=latestReadyBatch(g);
+   if(next&&!next.confirmed&&b.id===latest?.id&&b.food!=='enough'){
     const proposed=mealInstant(b.food==='finished'?today:mealAddDays(today,1),s.cook_time);
     if(proposed<next.when)next.when=proposed;
    }
@@ -171,15 +199,15 @@ export function mealReminders(g:MealGroup,now=new Date()):MealReminder[]{
  const today=mealDate(now),hour=Number(new Intl.DateTimeFormat('en-AU',{timeZone:'Australia/Melbourne',hour:'2-digit',hourCycle:'h23'}).format(now));
  if(!g.state.reminders||hour<8||hour>=22)return [];
  const result:MealReminder[]=[],add=(key:string,ids:string[],title:string,body:string)=>{for(const id of ids)if(g.member_ids.includes(id))result.push({key:key+':'+id,member_id:id,title:g.name+': '+title,body});};
- const current=g.state.batches.filter(b=>b.status==='ready').at(-1),next=g.state.batches.find(b=>b.status==='planned');
- if(current&&!next&&current.checked_on!==today&&(current.food!=='enough'||today>=mealAddDays(mealDate(new Date(current.ready_at!)),current.days-1)))add('food:'+current.id+':'+today,g.member_ids,'Check the food','Enough food for tomorrow? Update Enough / Running low / Finished and plan the next cook.');
- if(current&&current.checked_on!==today&&today>=mealAddDays(mealDate(new Date(current.ready_at!)),current.days-1))add('food:'+current.id+':'+today,g.member_ids,'Check the food','Is there enough food left? Tap to check the batch and next cooking plan.');
+ const current=latestReadyBatch(g),next=g.state.batches.find(b=>b.status==='planned');
+ if(current&&!next&&current.checked_on!==today&&(current.food!=='enough'||today>=mealAddDays(batchCookedDate(current),current.days-1)))add('food:'+current.id+':'+today,g.member_ids,'Check the food','Enough food for tomorrow? Update Enough / Running low / Finished and plan the next cook.');
+ if(current&&current.checked_on!==today&&today>=mealAddDays(batchCookedDate(current),current.days-1))add('food:'+current.id+':'+today,g.member_ids,'Check the food','Is there enough food left? Tap to check the batch and next cooking plan.');
  if(next){
   const remaining=Date.parse(next.when)-now.getTime();
   if(!next.confirmed&&remaining<=DAY&&remaining>-DAY)add('confirm:'+next.id,g.member_ids,'Confirm the next cook','Suggested for '+formatLocalDateTime(next.when)+'. Choose the dishes and confirm a time for the cooking pair.');
   if(next.confirmed&&remaining<=3600000&&remaining>-DAY){
    const late=remaining<0;
-   for(const role of ['cook','prep'] as const)add(`${next.id}:${next.when}:${role}:${late?'late':'soon'}`,[next.roles[role]],late?'Cooking not marked ready':mealRoleNames[role]+' soon','Your role: '+mealRoleNames[role]+'. Cooking time: '+formatLocalDateTime(next.when)+' (Melbourne time). '+(late?'The batch is not marked ready yet. Update it or request help.':'Check ingredients and your partner.'));
+   for(const role of ['cook','prep'] as const){const owner=next.roles[role];if(owner)add(`${next.id}:${next.when}:${role}:${late?'late':'soon'}`,[owner],late?'Cooking not marked ready':mealRoleNames[role]+' soon','Your role: '+mealRoleNames[role]+'. Cooking time: '+formatLocalDateTime(next.when)+' (Melbourne time). '+(late?'The batch is not marked ready yet. Update it or request help.':'Check ingredients and your partner.'));}
    if(remaining < -1800000)add(next.id+':support:'+next.when,g.member_ids,'Does the cooking pair need help?','The planned batch is still unconfirmed after its cooking time. Check in or update the plan.');
   }
   if(next.roles.shopper&&mealShoppingNeeded(g,next,today)&&next.confirmed&&remaining<=2*3600000&&remaining>-DAY&&g.state.items.some(i=>i.status==='needed'&&i.urgency!=='later'))add(next.id+':shopping:'+next.when,[next.roles.shopper],'Ingredients still needed','Get the missing ingredients before cooking at '+formatLocalDateTime(next.when)+' (Melbourne time). Check the shopping list or ask for help.');

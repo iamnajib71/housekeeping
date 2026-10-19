@@ -90,3 +90,8 @@ has one ingredient field and one availability checkbox per item; logging a trip
 remains separate so checking ingredients never falsely credits a grocery trip.
 Clock labels use 12-hour am/pm, including dropdown choices. Stored wall times
 remain unchanged. Expanded forms must remain reachable and fit at 320px.
+
+Expose “Log an unplanned cook” in Shared meals. The quick form asks for dishes
+and the actual cook; date, portions, eaters and optional prep credit sit in one
+disclosure. Keep earlier food batches behind an expandable list in Current batch
+so a spontaneous cook does not make existing leftovers disappear.

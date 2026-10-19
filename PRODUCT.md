@@ -80,3 +80,18 @@ If someone covers rice, “I put rice in the cooker” records the signed-in per
 as the contributor and preserves the original assignee. This counts once in
 rice fairness, stops the outstanding reminder and needs no prior help request.
 Confirming that an assigned person did it remains compatible with older clients.
+
+## Unplanned cooking
+
+Meal-group members can log a completed cook directly, selecting one or two
+dishes and the actual cook. A helper is optional; prep/cleanup is credited only
+when explicitly recorded, including when the same cook did both roles. One batch
+earns one cooking contribution regardless of dish count. Duplicate and racing
+submissions must not award extra credit. Record the cooking date separately from
+entry time rather than inventing an exact cooking time.
+
+Keep earlier batches and all their contributions accessible. Refresh only
+unconfirmed cooking suggestions using the new batch's two- or three-day planning
+estimate and updated contribution totals. Preserve confirmed future plans.
+Backdated entries remain history when fresher food is already recorded; changing
+older food status must not move a fresh batch's next cook forward.

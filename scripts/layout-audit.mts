@@ -80,6 +80,10 @@ try {
       await page.locator('.meal-reminder-settings > summary').click();
       await page.getByText('Available ingredients', { exact: true }).click();
       await audit('expanded-meal-forms-' + theme);
+      await page.getByRole('button', { name: 'Log an unplanned cook', exact: true }).click();
+      await page.locator('.meal-log-options > summary').click();
+      await audit('unplanned-cook-options-' + theme);
+      await page.getByRole('form', { name: 'Unplanned cook', exact: true }).getByRole('button', { name: 'Cancel', exact: true }).click();
       if ([320, 390, 768, 1024].includes(width)) await page.screenshot({ path: `.local/layout-audit/meals-${theme}-${width}.png`, fullPage: true });
       for (const nav of ['Overview', 'Cleaning schedule', 'Our household', 'Household settings', 'Household QR code']) {
         await navigate(nav);

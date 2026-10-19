@@ -201,6 +201,11 @@ input[type=checkbox], input[type=radio] { padding: 0; }
 .meal-today-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 12px; align-items: start; }
 .meal-grid { display: contents; }
 .meal-card { padding: 20px; }
+.meal-quick-log { margin-top: -8px; }
+.meal-earlier { border-top: 1px solid var(--line); margin-top: 12px; padding-top: 10px; }
+.meal-earlier-batch { padding: 12px 0 0; }
+.meal-earlier-batch + .meal-earlier-batch { border-top: 1px solid var(--line); margin-top: 12px; }
+.meal-log-options > .meal-form-grid { margin-top: 14px; }
 .meal-card .section-heading { margin-bottom: 10px; gap: 8px; }
 .meal-card .section-heading h3 { margin: 0; }
 .meal-card .section-heading .badge { flex-shrink: 0; }

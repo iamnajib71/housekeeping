@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
-import {applyMealCommand,emptyMealState,ensureDailyRice,mealInstant,mealCount,mealReminders,suggestMealRoles,type MealGroup,type MealCommand} from '../lib/meals';
+import {latestReadyBatch,batchCookedDate,applyMealCommand,emptyMealState,ensureDailyRice,mealInstant,mealCount,mealReminders,suggestMealRoles,type MealGroup,type MealCommand} from '../lib/meals';
 const now=new Date('2026-10-18T03:00:00Z');
 function group(ids=['a','b','c']):MealGroup{return {id:randomUUID(),household_id:1,name:'Dinner',member_ids:ids,created_by:ids[0],created_at:now.toISOString(),version:0,state:emptyMealState()};}
 function act(g:MealGroup,action:string,body:Record<string,unknown>={},at=now,actor='a'){return applyMealCommand(g,actor,{action,request_id:randomUUID(),...body} as MealCommand,at);}
@@ -189,4 +189,50 @@ test('cooking reminders target cook and prep, follow role swaps and stop after b
  assert.deepEqual(new Set(mealReminders(g,soon).filter(n=>n.title.includes('soon')).map(n=>n.member_id)),new Set(['c','b']));
  g=act(g,'ready',{batch_id:b.id},soon);
  assert.ok(!mealReminders(g,soon).some(n=>n.title.includes('soon')||n.title.includes('not marked ready')));
+});
+
+test('an unplanned solo cook credits only recorded work and refreshes suggestions without rewriting earlier food',()=>{
+ let g=plan(group());g=act(g,'ready',{batch_id:g.state.batches[0].id});
+ const old=structuredClone(g.state.batches[0]),rice=structuredClone(g.state.rice),pending=g.state.batches.find(b=>b.status==='planned')!;
+ g=act(g,'record_cook',{dishes:['Alu Bhaji','Dal'],cook:'c',prep:null,on:'2026-10-18',days:2});
+ const b=latestReadyBatch(g)!;
+ assert.deepEqual(g.state.batches[0],old);assert.deepEqual(g.state.rice,rice);
+ assert.equal(b.unplanned,true);assert.equal(b.cooked_on,'2026-10-18');assert.equal(b.roles.cook,'c');assert.equal(b.roles.prep,null);assert.equal(b.roles.shopper,null);
+ assert.equal(mealCount(g,'c','cook'),1);assert.equal(mealCount(g,'c','prep'),0);
+ assert.equal(g.state.events.filter(e=>e.batch_id===b.id).length,1);
+ assert.equal(g.state.batches.find(b=>b.id===pending.id)!.status,'cancelled');
+ const next=g.state.batches.find(b=>b.status==='planned')!;
+ assert.equal(mealDateFrom(next.when),'2026-10-19');assert.equal(next.confirmed,false);assert.deepEqual(next.help,[]);
+ const before=structuredClone(next);
+ g=act(g,'food',{batch_id:old.id,food:'finished'});
+ assert.deepEqual(g.state.batches.find(b=>b.id===next.id),before);
+});
+
+function mealDateFrom(value:string){return new Intl.DateTimeFormat('en-CA',{timeZone:'Australia/Melbourne',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(value));}
+
+test('unplanned cooking preserves an agreed future plan and can explicitly credit solo prep',()=>{
+ let g=plan(group()),planned=structuredClone(g.state.batches[0]);
+ const command={action:'record_cook',request_id:randomUUID(),dishes:['Alu Bhaji','Dal'],cook:'c',prep:'c',days:3,on:'2026-10-18'};
+ g=applyMealCommand(g,'a',command,now);
+ assert.deepEqual(g.state.batches.find(b=>b.id===planned.id),planned);
+ assert.equal(mealCount(g,'c','cook'),1);assert.equal(mealCount(g,'c','prep'),1);
+ assert.deepEqual(applyMealCommand(g,'a',command,now),g);
+ assert.throws(()=>act(g,'record_cook',{...command,request_id:randomUUID(),dishes:[' dal ','ALU BHAJI']}),/already recorded/);
+});
+
+test('a backdated cook stays in history without replacing fresher food or its next plan',()=>{
+ let g=act(group(),'record_cook',{dishes:['Fresh curry'],cook:'a',days:3,on:'2026-10-18'});
+ const planned=structuredClone(g.state.batches.find(b=>b.status==='planned'));
+ g=act(g,'record_cook',{dishes:['Earlier dal'],cook:'b',days:2,on:'2026-10-16'});
+ assert.deepEqual(latestReadyBatch(g)!.dishes,['Fresh curry']);
+ assert.equal(batchCookedDate(g.state.batches.at(-1)!),'2026-10-16');
+ assert.deepEqual(g.state.batches.find(b=>b.status==='planned'),planned);
+ assert.equal(g.state.events.filter(e=>e.kind==='cook'&&e.members.includes('b'))[0].on,'2026-10-16');
+});
+
+test('unplanned cooking validates date, dishes, eaters and every credited member',()=>{
+ const g=group(),valid={dishes:['Alu Bhaji','Dal'],cook:'a',prep:null,on:'2026-10-18',days:2};
+ for(const invalid of [{cook:'outside'},{prep:'outside'},{participants:[]},{participants:['outside']},{on:'2026-10-19'},{on:'2026-02-30'},{days:1},{dishes:[]},{dishes:['Dal','dal']},{dishes:['One','Two','Three']}])assert.throws(()=>act(g,'record_cook',{...valid,...invalid}));
+ assert.throws(()=>act(g,'record_cook',valid,now,'outside'));
+ assert.equal(g.state.batches.length,0);assert.equal(g.state.events.length,0);
 });
