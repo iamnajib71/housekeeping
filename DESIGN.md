@@ -95,3 +95,10 @@ Expose “Log an unplanned cook” in Shared meals. The quick form asks for dish
 and the actual cook; date, portions, eaters and optional prep credit sit in one
 disclosure. Keep earlier food batches behind an expandable list in Current batch
 so a spontaneous cook does not make existing leftovers disappear.
+
+Highlight the collection-bin duty inside Tuesday task lists with an amber
+surface, strong left border and a bin icon. Keep checkbox semantics and text
+intact, with a completed state in green. Apply the same treatment to future
+Tuesday previews. Do not repeat collection information in global overview or
+schedule banners. Everyday bin-fullness checks and Monday household-bin duties
+remain ordinary cleaning duties.

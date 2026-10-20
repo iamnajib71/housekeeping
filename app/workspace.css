@@ -538,3 +538,22 @@ html[data-theme=dark] .rotation-card { background: #282d35; }
 html[data-theme=dark] .meal-rice { background: #282d35; }
 html[data-theme=dark] .late-hint { color: #f6dc9a; }
 html[data-theme=dark] .notice.late-notice { background: #53462b; color: #f6dc9a; }
+
+/* Collection duty belongs to the Tuesday checklist, rather than a weekly banner. */
+.task-list > div.collection-duty, .checklist label.collection-duty, .assigned-task-preview li.collection-duty {
+  background: #fff3cf; color: #704b0c; border: 1px solid #e4c575; border-left: 4px solid #b78216;
+  border-radius: 9px; padding: 12px; margin: 5px 0; font-weight: 600;
+}
+.collection-task-copy { display: flex; align-items: flex-start; gap: 9px; min-width: 0; }
+.collection-task-copy > span { min-width: 0; overflow-wrap: anywhere; }
+.collection-task-icon { margin-top: 2px; flex: none; }
+.assigned-task-preview li.collection-duty { list-style: none; }
+.task-list > div.collection-duty.submitted-task, .checklist label.collection-duty:has(input:checked) {
+  background: #eaf5ed; border-color: #9bc5ad; color: #176445;
+}
+html[data-theme=dark] .task-list > div.collection-duty, html[data-theme=dark] .checklist label.collection-duty, html[data-theme=dark] .assigned-task-preview li.collection-duty {
+  background: #3c3320; border-color: #8e773e; border-left-color: #e1b857; color: #f6df9c;
+}
+html[data-theme=dark] .task-list > div.collection-duty.submitted-task, html[data-theme=dark] .checklist label.collection-duty:has(input:checked) {
+  background: #284c38; border-color: #628f73; color: #c2f1d7;
+}

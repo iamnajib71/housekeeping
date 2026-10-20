@@ -19,6 +19,11 @@ export function shortBinName(bin: WasteBin): string {
   return ({ 'General rubbish': 'Red lid', 'Food & garden organics': 'Green lid', 'Mixed recycling': 'Yellow lid', 'Glass recycling': 'Purple lid' })[bin];
 }
 
+export function isTuesdayBinDuty(task: string, date: string): boolean {
+  return new Date(date + 'T12:00:00Z').getUTCDay() === 2
+    && (task.startsWith('Put collection bins out Tuesday night') || task === 'Check for Bin Collection (Tuesday)');
+}
+
 export function binOutTask(date: string): string | undefined {
   if (new Date(date + 'T12:00:00Z').getUTCDay() !== 2) return;
   const tomorrow = new Date(Date.parse(date + 'T12:00:00Z') + 86400000).toISOString().slice(0, 10);
