@@ -1,30 +1,51 @@
 # Housekeeping
 
-A private, mobile-friendly cleaning app for six housemates. Next.js runs on Vercel Hobby; Supabase Free stores the roster, submissions, and private proof images. Google Apps Script delivers Gmail reminders without a domain.
+A mobile-first household app for cleaning rotas, shared meals, private photo proof and reminders.
 
-## Household rules
+[![Verify app](https://github.com/iamnajib71/housekeeping/actions/workflows/verify.yml/badge.svg)](https://github.com/iamnajib71/housekeeping/actions/workflows/verify.yml)
 
-- Kickoff clean: Najib on Sunday, 27 September 2026. The fair Tuesday–Sunday rotation follows, with every person receiving one turn per full week and rotating weekdays over six weeks.
-- Weekly deep clean: Mondays from 5 October 2026. All 15 pairs appear in a 15-week cycle.
-- Timezone: `Australia/Melbourne`, including daylight saving.
-- Deep-clean areas: Kitchen, Oven, Stove, Toilet, Bathroom, Common Space, Lounge room, and Laundry.
-- Both Monday participants submit their own task list and photos.
-- **Shared meals** supports private groups, daily automatic rice duties, fair batch-cooking roles, shared groceries and joint trip credit, food-status updates, and reminders through the existing free email/push connection. See [Shared meals](docs/SHARED_MEALS.md).
-- Monday bin changes belong to one named participant: empty household bins, replace liners and wipe dirty lids. The owner appears in the overview and task dialog, gets the checkbox and email duty, and rotates using completed weekly history. Walkthrough/settings replacements retain this duty. Tuesday's collection-bin duty stays with Tuesday's daily cleaner.
-- The original household's overdue reminder starts at 10 PM Melbourne time, normally arriving within 15 minutes. Each assigned tenant is checked separately, so a Monday partner who has submitted is skipped. Submitted/approved parts are skipped; requested fixes still need resubmission. Repeated worker checks do not resend the same overdue reminder. Gmail phone notifications can alert tenants without paid SMS. The deadline remains adjustable in Household settings for each property.
-- **Phone setup** offers Home Screen installation and free Web Push reminders with an explicit opt-in. Each person can test or disable notifications on their device; email remains independent. See [Phone reminders](docs/PHONE_NOTIFICATIONS.md).
-- The overview shows each member's submitted tasks as checked and links to their saved submission, with their Monday partner's status shown separately. The next-turn date skips that member's already submitted work.
-- Each person may upload up to 10 compressed photos per assignment.
-- Submitted proof is visible to every signed-in household member. Photos expire after 15 days; task history remains.
-- Admin reviews accept individual tasks and flag incomplete or missing tasks with reasons. Accepted tasks stay accepted; the member sees exactly what to fix and resubmit. Gmail includes the task-specific reasons.
-- Start cleaning is optional. Every submission records its end time; using Start also records an approximate duration including proof preparation. Resubmitting without a new Start records only an end time.
-- Admin walkthrough trial: upload or record a common-area video, review AI suggestions, and explicitly replace the active areas and duties. Started work and submitted history are preserved. See [Walkthrough trial](docs/WALKTHROUGH_TRIAL.md) for cloud setup, free-tier limits and privacy details.
+[Open the app](https://housekeeping-najib.vercel.app) · [Deployment](docs/DEPLOYMENT.md) · [Account setup](docs/ACCOUNT_ONBOARDING.md)
+
+## Interface
+
+The screenshots show the actual application rendered locally with fictional test fixtures and mocked API responses. Names, property details and assignments are demonstration data. They contain no live household records or proof photos.
+
+![Desktop dashboard with fictional household data](docs/screenshots/overview-desktop.png)
+
+<img src="docs/screenshots/overview-mobile.png" width="320" alt="Mobile dashboard with fictional household data">
+
+[Screenshot provenance and reproduction](docs/screenshots/README.md)
+
+## Features
+
+| Area | Functionality |
+| --- | --- |
+| Cleaning rota | Rotating daily duties, weekly team cleans and individual task allocations |
+| Submissions | Task checklists, optional session timing, compressed photo uploads and retained cleaning history |
+| Review | Approve individual tasks, request specific fixes and preserve accepted work during resubmission |
+| Shared meals | Private groups, rice duties, batch cooking, groceries and shared trip credit |
+| Reminders | Email, opt-in Web Push and Home Screen installation |
+| Property management | Administrator and tenant roles, private invitations, household selection and guided setup |
+| Privacy | Household-scoped server access, private storage and short-lived proof-image links |
+
+## Architecture
+
+```mermaid
+flowchart LR
+  Browser[Responsive Next.js interface] --> Auth[Google sign-in / Supabase Auth]
+  Browser --> API[Server routes / session and household checks]
+  API --> DB[(Supabase PostgreSQL)]
+  API --> Storage[Private proof storage]
+  Worker[Reminder worker] --> DB
+  Worker --> Email[Google Apps Script / Gmail]
+  Worker --> Push[Opt-in Web Push]
+```
+
+The browser uses Supabase directly for sign-in. Server routes validate the session and household membership before accessing application records. Browser database roles have no household-table privileges. Proof-image links expire after a few minutes; uploaded proof expires after 15 days while task history remains.
 
 ## Local development
 
-An isolated admin [3D mapping trial](docs/MAPPING_TRIAL.md) runs LingBot-Map on a Colab GPU and imports a bounded map for manual area labelling. The active cleaning workflow changes only after reviewing and confirming a draft.
-
-Use Node 22. Copy `.env.example` to `.env.local` and fill the values. Never commit that file.
+Use Node.js 22. Copy `.env.example` to `.env.local` and configure your own development services. Keep credentials, member contact details, invitation links and private media outside version control. Repository sample records use fictional names.
 
 ```sh
 npm ci
@@ -32,34 +53,22 @@ npm run dev -- --port 3007
 npm test
 npm run typecheck
 npm run build
-node scripts/browser-check.mjs
-node scripts/task-feedback-check.mjs
-npx tsx scripts/onboarding-check.mts
-npx tsx scripts/submission-card-check.mts
-npx tsx scripts/phone-setup-check.mts
-npx tsx scripts/monday-bins-check.mts
 ```
 
-The `/app` route requires an approved household Google account and returns a dashboard customized to that roster member. `/setup` explains the free reminder connection.
+The `/app` route requires an approved account. `/setup` explains the reminder connection. The [documentation preview](docs/screenshots/README.md) renders fictional fixtures without signing into a live household.
 
-## Security
+## Verification
 
-The browser uses Supabase directly only for login. Each data route verifies the current Google session and roster entry before the server accesses household tables. Browser database roles have no household-table privileges. Storage is private and proof-image links expire after a few minutes.
+Unit tests cover scheduling, task allocation, daylight-saving boundaries, reminders, waste duties, feedback and optional session timing. Browser checks cover authentication gates, administrator review, resubmission, mobile navigation and saved theme preferences.
 
-Member emails are visible only to the admin. Mutating requests require the app's own origin. Database functions lock submissions during photo, review, and reassignment changes.
+Database integration scripts in `tests/` verify guards, grants, worker leases and ownership isolation inside transactions that roll back their fixtures. Run them only against a dedicated development database. The GitHub Actions workflow runs unit tests, type checking and a production build.
 
-Do not add browser table grants without matching, tested row-level security policies.
+## Deployment and operations
 
-## Deployment and upgrades
+Next.js runs on Vercel, with Supabase providing authentication, database and private storage. Gmail reminders use Google Apps Script; Web Push is opt-in. Builds do not reset or seed the live database.
 
-Read [Deployment](docs/DEPLOYMENT.md) and [Safe upgrades](docs/UPGRADES.md). Builds never reset or seed the live database. Do not edit a migration after it has been applied.
+- [Deployment](docs/DEPLOYMENT.md) and [safe upgrades](docs/UPGRADES.md)
+- [Shared meals](docs/SHARED_MEALS.md) and [phone notifications](docs/PHONE_NOTIFICATIONS.md)
+- [Walkthrough trial](docs/WALKTHROUGH_TRIAL.md) and [mapping trial](docs/MAPPING_TRIAL.md)
 
-Commercial product and future session-timing ideas are saved in [Product ideas](docs/PRODUCT_IDEAS.md).
-
-## Tests
-
-Unit tests cover start dates, daily fairness, Monday pairing and task allocation, Melbourne daylight saving, reminders, bin collections, task feedback, and optional session timing. Browser checks cover login/auth gates plus admin task review, member resubmission, Start persistence, and mobile layout. `tests/task-feedback.integration.sql` verifies database guards and email queuing in a transaction that rolls back all fixtures.
-
-Walkthrough unit tests cover plan validation and the resumable Google upload protocol. `tests/onboarding.integration.sql` and `tests/cloud-upload.integration.sql` verify replacement protections, rate limits, upload leases and private permissions inside rolled-back transactions. `scripts/onboarding-check.mts` mocks household APIs to exercise upload, consent, draft recovery, replacement and mobile layout; set `CHECK_BASE_URL` to the running app. Its optional real-video mode requires explicit transfer approval and never applies the draft to production.
-
-Push tests cover reminder eligibility, encrypted payload construction, provider endpoint validation and safe notification links. `tests/push.integration.sql` checks deduplication, leases, retry limits and private grants inside a rollback. The phone browser check uses temporary accounts, exercises ownership isolation and mobile prompts, and mocks its test-send transport; verify actual handset delivery with **Send test** on the device.
+Walkthrough and mapping features are experimental and require their own setup and explicit media-transfer consent. This repository provides source code and fictional examples; deployed households retain their own private configuration and records.

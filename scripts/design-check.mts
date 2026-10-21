@@ -7,7 +7,7 @@ const base = process.env.CHECK_BASE_URL || 'http://localhost:3011';
 const members = testMembers.map(m => ({ ...m, guide_completed: true }));
 const today = '2026-10-19';
 const assignments = generateSchedule(members, defaultSettings, today, '2027-01-03');
-const household = { id: 1, name: 'Park Street home', address: '123 Park Street, Melbourne, Victoria 3000' };
+const household = { id: 1, name: 'Demo household', address: 'Fictional demo property' };
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
 const errors: string[] = [];

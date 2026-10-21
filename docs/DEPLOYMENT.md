@@ -36,7 +36,7 @@ No paid domain is required.
 
 7. Copy the client ID and client secret into the Google provider at [Supabase Auth providers](https://supabase.com/dashboard/project/nttvdvsmsxwhjzfjveja/auth/providers). Enable Google and save. Never add the client secret to this repository.
 8. In **Supabase Authentication → URL Configuration**, set Site URL to the production Vercel URL and add `https://YOUR-APP.vercel.app/auth/callback` as a redirect URL.
-9. Sign in as Najib. Then verify that a Google account outside the roster is denied.
+9. Sign in with the privately configured administrator account. Then verify that a Google account outside the roster is denied.
 
 Google login and Gmail reminders are separate. Login identifies each housemate; Apps Script sends reminders.
 

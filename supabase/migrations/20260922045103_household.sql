@@ -52,13 +52,14 @@ insert into public.household_settings(id,daily_tasks,weekly_tasks) values(1,
 -- Email addresses are private production data and are configured outside
 -- version control. A fresh install denies all Google accounts until an admin
 -- deliberately adds the approved roster in Supabase.
+-- Bootstrap labels are fictional examples, not a live household roster.
 insert into public.members(name,email,role,position,color) values
- ('Najib',null,'admin',0,'#dce9ff'),
- ('Shawon',null,'member',1,'#f9e2c7'),
- ('Nasif',null,'member',2,'#e6defa'),
- ('Siam',null,'member',3,'#d8eee6'),
- ('Ratul',null,'member',4,'#f8dfe4'),
- ('Zarif',null,'member',5,'#e4e9ef');
+ ('Alex',null,'admin',0,'#dce9ff'),
+ ('Jamie',null,'member',1,'#f9e2c7'),
+ ('Sam',null,'member',2,'#e6defa'),
+ ('Taylor',null,'member',3,'#d8eee6'),
+ ('Morgan',null,'member',4,'#f8dfe4'),
+ ('Casey',null,'member',5,'#e4e9ef');
 alter table public.members enable row level security;
 alter table public.household_settings enable row level security;
 alter table public.assignments enable row level security;

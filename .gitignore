@@ -1,4 +1,6 @@
 node_modules/
+AGENTS.md
+CLAUDE.md
 .next/
 .env*
 !.env.example
