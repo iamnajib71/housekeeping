@@ -15,7 +15,6 @@ I built a household app that makes cleaning and meal duties visible, records com
 | **Results** | In daily household use, with [live-service upgrade procedures](docs/UPGRADES.md). [Unit coverage](tests/) and [browser checks](scripts/) exercise scheduling, feedback and access; [CI](.github/workflows/verify.yml) runs unit tests, type checking and a production build. Public previews use fictional data. |
 | **Skills shown** | Next.js, TypeScript, Supabase/Postgres row-level security, Google OAuth, Playwright, Vercel, API testing and responsive design. [Access model](docs/ACCOUNT_ONBOARDING.md#access-and-operational-limits). |
 | **Relevant roles** | Software Builder, Junior Developer, Junior Full-Stack Developer, QA Analyst. |
-| **How it was built** | Designed, specified and reviewed by me; built with Codex as my coding agent (vibe coding). Verification and its limits are linked below. |
 | **Try it / evidence** | [App (approved account required)](https://housekeeping-najib.vercel.app) · [Fictional-data preview](#interface) · [Screenshot provenance](docs/screenshots/README.md) · [Local development](#local-development) |
 
 ## What I did, step by step
