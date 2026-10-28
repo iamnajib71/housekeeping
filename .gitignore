@@ -1,6 +1,4 @@
 node_modules/
-AGENTS.md
-CLAUDE.md
 .next/
 .env*
 !.env.example
@@ -9,6 +7,5 @@ CLAUDE.md
 test-results/
 playwright-report/
 .local/
-.codex-remote-attachments/
 supabase/.temp/
 __pycache__/

@@ -1,6 +1,5 @@
 .env*
 .local/
-.codex-remote-attachments/
 experiments/
 .next/
 .git/
