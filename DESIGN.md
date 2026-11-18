@@ -102,3 +102,9 @@ intact, with a completed state in green. Apply the same treatment to future
 Tuesday previews. Do not repeat collection information in global overview or
 schedule banners. Everyday bin-fullness checks and Monday household-bin duties
 remain ordinary cleaning duties.
+
+Shared meals is retired. Navigation and legacy links lead to cleaning only; the
+meal API returns 410 while stored history remains intact. Automatic notifications
+are email only: morning assignment and a single 10pm overdue email per unfinished
+turn. No day-before or next-day catch-up, meal or automatic push delivery. Keep
+admin rejection feedback. Home-screen installation is offered on demand only.

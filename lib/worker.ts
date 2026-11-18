@@ -2,8 +2,6 @@ import 'server-only';
 import { database,ensureSchedule } from './server';
 import { addDays,localClock } from './schedule';
 import { memberReminderTypes,reminderIsCurrent } from './reminders';
-import { pollMealNotices } from './meals-worker';
-import { runPushReminders } from './push-worker';
 import type { Assignment,Submission } from './types';
 import { reminderEmail } from './reminder-email';
 import { deleteVideoFile } from './cloud-video';
@@ -28,6 +26,11 @@ export async function pollEmails(limit:number) {
  const {data:allSettings,error:settingsError}=await db.from('household_settings').select('*');if(settingsError)throw settingsError;
  const {data:members,error:memberError}=await db.from('members').select('*');if(memberError)throw memberError;
  for(const settings of allSettings||[])await ensureSchedule(db,settings,(members||[]).filter(m=>m.household_id===settings.id));
+ // Retire existing queues too: an older browser must not restart meal reminders.
+ for(const table of ['meal_notice_jobs','push_jobs']){
+  const {error}=await db.from(table).update({status:'cancelled'}).in('status',['pending','leased']);if(error)throw error;
+ }
+ const {error:retiredError}=await db.from('email_jobs').update({status:'cancelled'}).eq('kind','tomorrow').in('status',['pending','leased']);if(retiredError)throw retiredError;
  const deleted=await runMaintenance(db);
  const clock=localClock();
  const {data:assignments,error}=await db.from('assignments').select('*').gte('date',addDays(clock.date,-1)).lte('date',addDays(clock.date,1));if(error)throw error;
@@ -56,11 +59,7 @@ export async function pollEmails(limit:number) {
   const history=histories.get(a.household_id);
   messages.push({id:job.id,leaseToken:job.lease_token,...reminderEmail(a,member,(members||[]).filter(m=>m.household_id===a.household_id),job.kind,sub||undefined,history?.assignments||[],history?.submissions||[],process.env.APP_URL||'')});
  }
- let push={sent:0,failed:0};
- // Phone delivery is independent: a push provider failure must not stop Gmail.
- try{push=await runPushReminders(db,assignments||[],members||[],submissions||[],allSettings||[],clock);}catch{push.failed++;}
- let mealFailure=false;
- try{const meals=await pollMealNotices(db,Math.max(0,limit-messages.length),members||[]);messages.push(...meals.jobs);push.sent+=meals.push.sent;push.failed+=meals.push.failed;}catch{mealFailure=true;}
- const {error:healthError}=await db.from('worker_health').update({last_run:new Date().toISOString(),last_error:mealFailure?'Meal reminders could not run. Cleaning reminders still run.':push.failed?'Some phone notifications could not be sent. Email reminders still run.':null}).eq('id',1);if(healthError)throw healthError;
+ const push={sent:0,failed:0}; // Scheduled reminders use email only.
+ const {error:healthError}=await db.from('worker_health').update({last_run:new Date().toISOString(),last_error:null}).eq('id',1);if(healthError)throw healthError;
  return {jobs:messages,deleted,push};
 }

@@ -61,8 +61,8 @@ try {
     await expect(page.getByRole('region', { name: 'Assigned duties' })).toBeVisible();
     await page.getByRole('button', { name: 'Close task', exact: true }).click();
     await fits();
-    await tabs.getByRole('button', { name: 'Meals', exact: true }).click();
-    await expect(page.getByRole('heading', { name: 'Start a meal group' })).toBeVisible();
+    await tabs.getByRole('button', { name: 'History', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Cleaning history', exact: true })).toBeVisible();
     await fits();
     const more = tabs.getByRole('button', { name: 'More navigation' });
     await more.click();
@@ -154,7 +154,7 @@ try {
     expect(await page.locator('.your-turn').evaluate(el => getComputedStyle(el).backgroundColor)).toBe('rgb(32, 35, 41)');
     expect(await page.locator('.your-turn .button.primary').evaluate(el => getComputedStyle(el).backgroundColor)).toBe('rgb(123, 216, 183)');
     await page.screenshot({ path: `.local/design-dark-overview-${width}.png`, fullPage: true });
-    for (const nav of ['Shared meals', 'Our household', 'Cleaning history', 'Household settings', 'Household QR code']) {
+    for (const nav of ['Our household', 'Cleaning history', 'Household settings', 'Household QR code']) {
       if (width <= 700) await page.getByRole('button', { name: 'More navigation' }).click();
       await page.locator('.sidebar').getByRole('button', { name: nav, exact: true }).click();
       await fits();
@@ -165,7 +165,7 @@ try {
   await page.reload({ waitUntil: 'networkidle' });
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
   if (errors.length) throw new Error(errors.join('; '));
-  console.log('Design checks passed: all dashboard pages and public flows, 1440/1024/768/430/390/360/320 and landscape layouts, signup radio alignment and selection, future Monday duties, private meal empty state, drawer keyboard containment, reduced motion, dark surfaces and saved light/dark preference across reloads and routes.');
+  console.log('Design checks passed: all dashboard pages and public flows, 1440/1024/768/430/390/360/320 and landscape layouts, signup radio alignment and selection, future Monday duties, cleaning history navigation, drawer keyboard containment, reduced motion, dark surfaces and saved light/dark preference across reloads and routes.');
 } finally {
   await browser.close();
 }

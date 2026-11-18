@@ -1,6 +1,6 @@
 # Housekeeping
 
-I built a household app that makes cleaning and meal duties visible, records completed work and sends reminders so housemates can see who is responsible.
+I built a household app that makes cleaning duties visible, records completed work and sends reminders so housemates can see who is responsible.
 
 ![Actual desktop interface with fictional fixtures](docs/screenshots/overview-desktop.png)
 
@@ -11,7 +11,7 @@ I built a household app that makes cleaning and meal duties visible, records com
 | Area | Evidence-backed summary |
 | --- | --- |
 | **The problem** | A six-person shared house argues over chores and misses tasks when ownership and completion are unclear, costing housemates time following up. The original household size and scheduling rules are documented in [account setup](docs/ACCOUNT_ONBOARDING.md). |
-| **What I built** | I built cleaning rotations, task-level review, private photo proof, shared meals and reminders, with Google sign-in and household-scoped access. |
+| **What I built** | I built cleaning rotations, task-level review, private photo proof and email reminders, with Google sign-in and household-scoped access. |
 | **Results** | In daily household use, with [live-service upgrade procedures](docs/UPGRADES.md). [Unit coverage](tests/) and [browser checks](scripts/) exercise scheduling, feedback and access; [CI](.github/workflows/verify.yml) runs unit tests, type checking and a production build. Public previews use fictional data. |
 | **Skills shown** | Next.js, TypeScript, Supabase/Postgres row-level security, Google OAuth, Playwright, Vercel, API testing and responsive design. [Access model](docs/ACCOUNT_ONBOARDING.md#access-and-operational-limits). |
 | **Relevant roles** | Software Builder, Junior Developer, Junior Full-Stack Developer, QA Analyst. |
@@ -22,8 +22,8 @@ I built a household app that makes cleaning and meal duties visible, records com
 1. Defined duty ownership, rotation and completion rules and added [schedule tests](tests/schedule.test.ts).
 2. Built mobile task checklists, photo submissions and individual feedback so accepted work survives resubmission.
 3. Added Google sign-in and server-side household checks; kept browser database access denied by default and proof storage private. [Account model](docs/ACCOUNT_ONBOARDING.md).
-4. Added reminder queues and opt-in phone notifications with deduplication and ownership checks.
-5. Extended the household workflow to private meal groups while retaining existing cleaning history.
+4. Added reminder queues with deduplication and ownership checks; simplified delivery to morning and 10pm email reminders.
+5. Built and later retired private meal groups while retaining historical records.
 6. Checked unit behaviour, browser flows and database guards, then documented [safe upgrades](docs/UPGRADES.md) and captured [fictional-data interface previews](docs/screenshots/README.md).
 
 ## Problems I hit and how I solved them
@@ -48,8 +48,7 @@ The screenshots show the actual application rendered locally with fictional test
 | Cleaning rota | Rotating daily duties, weekly team cleans and individual task allocations |
 | Submissions | Task checklists, optional session timing, compressed photo uploads and retained cleaning history |
 | Review | Approve individual tasks, request specific fixes and preserve accepted work during resubmission |
-| Shared meals | Private groups, rice duties, batch cooking, groceries and shared trip credit |
-| Reminders | Email, opt-in Web Push and Home Screen installation |
+| Reminders | Morning assignment email, 10pm overdue email and on-demand Home Screen installation |
 | Property management | Administrator and tenant roles, private invitations, household selection and guided setup |
 | Privacy | Household-scoped server access, private storage and short-lived proof-image links |
 
@@ -63,7 +62,6 @@ flowchart LR
   API --> Storage[Private proof storage]
   Worker[Reminder worker] --> DB
   Worker --> Email[Google Apps Script / Gmail]
-  Worker --> Push[Opt-in Web Push]
 ```
 
 The browser uses Supabase directly for sign-in. Server routes validate the session and household membership before accessing application records. Browser database roles have no household-table privileges. Proof-image links are short-lived; [uploaded proof expires after 15 days](supabase/migrations/20260922045103_household.sql) while task history remains.
@@ -90,10 +88,10 @@ Database integration scripts in `tests/` verify guards, grants, worker leases an
 
 ## Deployment and operations
 
-Next.js runs on Vercel, with Supabase providing authentication, database and private storage. Gmail reminders use Google Apps Script; Web Push is opt-in. Builds do not reset or seed the live database.
+Next.js runs on Vercel, with Supabase providing authentication, database and private storage. Gmail reminders use Google Apps Script. Automatic push and meal reminders are disabled. Builds do not reset or seed the live database.
 
 - [Deployment](docs/DEPLOYMENT.md) and [safe upgrades](docs/UPGRADES.md)
-- [Shared meals](docs/SHARED_MEALS.md) and [phone notifications](docs/PHONE_NOTIFICATIONS.md)
+- [Reminder policy and phone setup](docs/PHONE_NOTIFICATIONS.md)
 - [Walkthrough trial](docs/WALKTHROUGH_TRIAL.md) and [mapping trial](docs/MAPPING_TRIAL.md)
 
 Walkthrough and mapping features are experimental and require their own setup and explicit media-transfer consent. This repository provides source code and fictional examples; deployed households retain their own private configuration and records.

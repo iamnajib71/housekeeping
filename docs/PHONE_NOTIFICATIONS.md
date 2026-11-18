@@ -1,5 +1,19 @@
 # Phone reminders
 
+## Current policy (18 November 2026)
+
+Scheduled reminders use email only: one morning assignment email (the existing
+household uses 8am Melbourne time), followed by one 10pm email if that person's
+part is still unsubmitted. Completed work is suppressed. Day-before, next-day
+catch-up, meal and automatic push reminders are disabled. Admin rejection emails
+still explain needed fixes. Existing delivery receipts prevent duplicates.
+
+Home-screen installation is available on demand through **Add app**. There is no
+automatic notification setup popup. Enable Gmail notifications for phone alerts.
+The earlier push implementation and manual trials below are historical notes;
+they are not part of scheduled delivery.
+
+
 ## Working now: email
 
 The original home's cleaning deadline is 22:00 in Australia/Melbourne. Its existing Gmail Apps Script checks every 15 minutes and sends overdue emails only to assigned members whose own part is still unsubmitted. Submitted and approved parts are excluded, including a Monday partner who has already submitted. Drafts and requested fixes still need submission. Each assignment/member/overdue combination has one delivery job, so polling does not repeatedly send it. A new submission is checked again before an email is handed to Gmail.

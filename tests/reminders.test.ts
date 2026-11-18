@@ -9,6 +9,21 @@ const settings = { ...defaultSettings, deadline_hour: 22 };
 const daily: Assignment = { id: 'daily-2026-10-11', household_id: 1, date: '2026-10-11', kind: 'daily', member_ids: ['siam'], tasks: ['Clean kitchen'] };
 const submission = (memberId: string, status: Submission['status'], a = daily): Submission => ({ id: memberId, assignment_id: a.id, member_id: memberId, tasks: a.tasks, notes: '', status, submitted_at: null, review_note: '' });
 
+test('quieter reminders omit the day before and next-day catch-up', () => {
+  assert.deepEqual(memberReminderTypes(daily, 'siam', [], '2026-10-10', 20, settings), []);
+  assert.deepEqual(memberReminderTypes(daily, 'siam', [], '2026-10-12', 8, settings), []);
+  assert.equal(reminderIsCurrent('tomorrow', daily, 'siam', [], '2026-10-10', 20, settings), false);
+  assert.equal(reminderIsCurrent('overdue', daily, 'siam', [], '2026-10-12', 8, settings), false);
+});
+
+test('morning and 10pm are the only scheduled email windows, even with old deadline preferences', () => {
+  const old = { ...settings, deadline_hour: 21 };
+  assert.deepEqual(memberReminderTypes(daily, 'siam', [], daily.date, old.morning_hour - 1, old), []);
+  assert.deepEqual(memberReminderTypes(daily, 'siam', [], daily.date, old.morning_hour, old), ['today']);
+  assert.deepEqual(memberReminderTypes(daily, 'siam', [], daily.date, 21, old), ['today']);
+  assert.deepEqual(memberReminderTypes(daily, 'siam', [], daily.date, 22, old), ['overdue']);
+});
+
 test('overdue email begins at 10 PM Melbourne time, in summer and winter', () => {
   for (const [date, before, due] of [
     ['2026-10-11', '2026-10-11T10:59:59Z', '2026-10-11T11:00:00Z'],

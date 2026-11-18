@@ -17,7 +17,7 @@ export async function POST(request:Request){
    const s=body.settings;
    for(const key of ['daily_tasks','weekly_tasks'])if(!Array.isArray(s?.[key])||!s[key].length||s[key].length>30||!s[key].every((t:unknown)=>typeof t==='string'&&t.trim().length>0&&t.length<=150))throw new ApiError('Use 1–30 tasks per checklist, each up to 150 characters.');
    for(const key of ['evening_hour','morning_hour','deadline_hour'])if(!Number.isInteger(s[key])||s[key]<0||s[key]>23)throw new ApiError('Choose a valid reminder hour.');
-   if(s.morning_hour>=s.deadline_hour)throw new ApiError('The morning reminder must be before the deadline.');
+   if(s.morning_hour>=22||s.morning_hour>=s.deadline_hour)throw new ApiError('The morning email must be before the cleaning deadline and the 10pm overdue email.');
    if(typeof s.reminders_enabled!=='boolean')throw new ApiError('Invalid reminder preference.');
    const weekly=weeklyTasksWithBins(s.weekly_tasks);
    if(weekly.length>30)throw new ApiError('Use up to 29 weekly duties plus the Monday bin duty.');

@@ -129,9 +129,7 @@ export function taskEffort(task:string):number{
 }
 export function reminderTypes(date: string, today: string, hour: number, settings: Settings, complete: boolean): string[] {
   if (!settings.reminders_enabled || complete) return [];
-  if (date === addDays(today, 1) && hour >= settings.evening_hour) return ['tomorrow'];
-  if (date === today && hour >= settings.deadline_hour) return ['overdue'];
+  if (date === today && hour >= 22) return ['overdue'];
   if (date === today && hour >= settings.morning_hour) return ['today'];
-  if (date === addDays(today, -1) && hour < 12) return ['overdue'];
   return [];
 }

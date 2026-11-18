@@ -1,4 +1,8 @@
-# Shared meals
+# Shared meals (retired)
+
+As of 18 November 2026, this feature is removed from navigation and its API
+returns 410. Meal reminders are disabled. Stored history is retained privately.
+The remainder documents the former implementation for maintenance only.
 
 Open **Shared meals** in the navigation. Any household member can create a named
 group of 2–12 people from their current property, including themselves. Selected

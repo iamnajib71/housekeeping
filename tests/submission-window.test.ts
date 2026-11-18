@@ -36,7 +36,7 @@ test('late labels are derived from actual submission timestamps after Melbourne 
   assert.equal(isLateSubmission('2026-10-18', { submitted_at: 'invalid' }), false);
 });
 
-test('overdue reminders stop when the initial upload window closes', () => {
-  assert.deepEqual(reminderTypes('2026-10-18', '2026-10-19', 11, defaultSettings, false), ['overdue']);
+test('quieter reminders do not add a next-morning email during the late upload window', () => {
+  assert.deepEqual(reminderTypes('2026-10-18', '2026-10-19', 11, defaultSettings, false), []);
   assert.deepEqual(reminderTypes('2026-10-18', '2026-10-19', 12, defaultSettings, false), []);
 });

@@ -27,9 +27,9 @@ test('Melbourne dates and reminder hours handle DST transition',()=>{
  assert.equal(mondayOf('2026-10-04'),'2026-09-28');
 });
 test('reminder windows suppress completed tasks and old backlog',()=>{
- assert.deepEqual(reminderTypes('2026-10-05','2026-10-04',19,defaultSettings,false),['tomorrow']);
+ assert.deepEqual(reminderTypes('2026-10-05','2026-10-04',19,defaultSettings,false),[]);
  assert.deepEqual(reminderTypes('2026-10-05','2026-10-05',8,defaultSettings,false),['today']);
- assert.deepEqual(reminderTypes('2026-10-05','2026-10-05',21,defaultSettings,false),['overdue']);
+ assert.deepEqual(reminderTypes('2026-10-05','2026-10-05',22,defaultSettings,false),['overdue']);
  assert.deepEqual(reminderTypes('2026-10-05','2026-10-05',8,defaultSettings,true),[]);
  assert.deepEqual(reminderTypes('2026-10-03','2026-10-05',8,defaultSettings,false),[]);
 });
