@@ -6,6 +6,7 @@ import type { Assignment,Submission } from './types';
 import { reminderEmail } from './reminder-email';
 import { deleteVideoFile } from './cloud-video';
 import { clearVideoBuffer } from './video-relay';
+import { memberAvailable } from './availability';
 export async function runMaintenance(db=database()) {
  const {data:oldTrials}=await db.from('walkthrough_trials').select('id,status').is('buffer_cleaned_at',null).lt('created_at',new Date(Date.now()-2*60*60*1000).toISOString()).order('created_at').limit(5);
  await Promise.allSettled((oldTrials||[]).map(async trial=>{await clearVideoBuffer(db,trial.id);const {error}=await db.from('walkthrough_trials').update({buffer_cleaned_at:new Date().toISOString()}).eq('id',trial.id);if(error)throw error;if(trial.status==='uploading')await db.from('walkthrough_trials').update({status:'failed',upload_url:null}).eq('id',trial.id).eq('status','uploading');}));
@@ -37,7 +38,7 @@ export async function pollEmails(limit:number) {
  const {data:submissions,error:subError}=await db.from('submissions').select('*').in('assignment_id',(assignments||[]).map(a=>a.id));if(subError)throw subError;
  const jobs=[];
  for(const a of (assignments||[]) as Assignment[])for(const memberId of a.member_ids){
-  const settings=allSettings?.find(s=>s.id===a.household_id);if(!settings||!members?.find(m=>m.id===memberId)?.email)continue;
+  const settings=allSettings?.find(s=>s.id===a.household_id),recipient=members?.find(m=>m.id===memberId);if(!settings||!recipient?.email||!memberAvailable(recipient,a.date))continue;
   for(const kind of memberReminderTypes(a,memberId,submissions||[],clock.date,clock.hour,settings))jobs.push({dedupe_key:a.id+':'+memberId+':'+kind,member_id:memberId,assignment_id:a.id,kind});
  }
  if(jobs.length){const {error}=await db.from('email_jobs').upsert(jobs,{onConflict:'dedupe_key',ignoreDuplicates:true});if(error)throw error;}
@@ -49,7 +50,7 @@ export async function pollEmails(limit:number) {
   const {data:a,error}=await db.from('assignments').select('*').eq('id',job.assignment_id).single();if(error)throw error;
   const {data:sub,error:readError}=await db.from('submissions').select('*').eq('assignment_id',a.id).eq('member_id',job.member_id).maybeSingle();if(readError)throw readError;
   const settings=allSettings?.find(s=>s.id===a.household_id);
-  if(!settings||!member?.email||member.household_id!==a.household_id||!reminderIsCurrent(job.kind,a,job.member_id,sub?[sub]:[],clock.date,clock.hour,settings)){const {error}=await db.from('email_jobs').update({status:'cancelled'}).eq('id',job.id);if(error)throw error;continue;}
+  if(!settings||!member?.email||!memberAvailable(member,a.date)||member.household_id!==a.household_id||!reminderIsCurrent(job.kind,a,job.member_id,sub?[sub]:[],clock.date,clock.hour,settings)){const {error}=await db.from('email_jobs').update({status:'cancelled'}).eq('id',job.id);if(error)throw error;continue;}
   if(a.kind==='weekly'&&job.kind!=='rework'&&!histories.has(a.household_id)){
    const {data:history,error}=await db.from('assignments').select('*').eq('household_id',a.household_id).eq('kind','weekly').gte('date',addDays(clock.date,-365)).order('date');if(error)throw error;
    let prior:Submission[]=[];

@@ -1,9 +1,15 @@
 import { ApiError,bodyJson,checkOrigin,failure,ok,requireMember,getAssignment } from '@/lib/server';
 import { weeklyTasksWithBins } from '@/lib/weekly-bins';
+import { setMemberAvailability } from '@/lib/availability-server';
+import { memberAvailable } from '@/lib/availability';
 export async function POST(request:Request){
  try{
   checkOrigin(request);const {db,member}=await requireMember(true);const body=await bodyJson(request);
   async function ownSubmission(id:string){const {data,error}=await db.from('submissions').select('assignment_id').eq('id',id).maybeSingle();if(error)throw error;if(!data)throw new ApiError('Submission not found.',404);await getAssignment(db,data.assignment_id,member.household_id);}
+  if(body.action==='availability'){
+   if(typeof body.id!=='string')throw new ApiError('Choose a tenant.');
+   return ok(await setMemberAvailability(db,member.household_id!,body.id,body));
+  }
   if(body.action==='member'){
    if(typeof body.name!=='string'||!body.name.trim()||body.name.trim().length>40)throw new ApiError('Enter a name of up to 40 characters.');
    const email=typeof body.email==='string'?body.email.trim().toLowerCase():null;
@@ -36,10 +42,10 @@ export async function POST(request:Request){
    return ok({ok:true,emailQueued:body.status==='rework'});
   }
   if(body.action==='reassign'){
-   await getAssignment(db,body.id,member.household_id);
-   const {data:eligible}=await db.from('members').select('id').eq('household_id',member.household_id).eq('participates',true).in('id',Array.isArray(body.memberIds)?body.memberIds:[]);
-   if(eligible?.length!==body.memberIds?.length)throw new ApiError('Choose tenants from this home.');
-   if(!Array.isArray(body.memberIds)||body.memberIds.length>2)throw new ApiError('Choose one or two housemates.');
+   const assignment=await getAssignment(db,body.id,member.household_id);
+   if(!Array.isArray(body.memberIds)||!body.memberIds.length||body.memberIds.length>2)throw new ApiError('Choose one or two housemates.');
+   const {data:eligible,error:eligibleError}=await db.from('members').select('*').eq('household_id',member.household_id).eq('participates',true).in('id',body.memberIds);if(eligibleError)throw eligibleError;
+   if(eligible?.length!==body.memberIds.length||eligible.some(m=>!memberAvailable(m,assignment.date)))throw new ApiError('Choose tenants available on this cleaning date.');
    const {error}=await db.rpc('reassign_clean',{p_assignment:body.id,p_members:body.memberIds});if(error)throw new ApiError(error.message);return ok({ok:true});
   }
   throw new ApiError('Unknown action.');

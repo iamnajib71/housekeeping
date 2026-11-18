@@ -1,7 +1,7 @@
 export type Kind = 'daily' | 'weekly';
 export type Status = 'draft' | 'submitted' | 'approved' | 'rework';
 export type Household = { id: number; name: string; address: string; owner_id?: string | null };
-export type Member = { id: string; name: string; email?: string | null; role: 'admin' | 'member'; position: number; color: string; household_id?: number; user_id?: string | null; participates?: boolean; guide_completed?: boolean };
+export type Member = { id: string; name: string; email?: string | null; role: 'admin' | 'member'; position: number; color: string; household_id?: number; user_id?: string | null; participates?: boolean; guide_completed?: boolean; away_from?: string | null; away_until?: string | null };
 export type Assignment = { id: string; date: string; kind: Kind; member_ids: string[]; tasks: string[]; household_id?: number; legacy_task_split?: boolean };
 export type TaskFeedback = { task: string; status: 'approved' | 'rework' | 'pending'; note: string };
 export type Submission = { id: string; assignment_id: string; member_id: string; tasks: string[]; notes: string; status: Status; submitted_at: string | null; review_note: string; task_feedback?: TaskFeedback[]; started_at?: string | null; finished_at?: string | null; photo_count?: number };

@@ -557,3 +557,13 @@ html[data-theme=dark] .task-list > div.collection-duty, html[data-theme=dark] .c
 html[data-theme=dark] .task-list > div.collection-duty.submitted-task, html[data-theme=dark] .checklist label.collection-duty:has(input:checked) {
   background: #284c38; border-color: #628f73; color: #c2f1d7;
 }
+
+.member-availability { margin: 12px 0; }
+.absence-status { display: flex; align-items: flex-start; gap: 8px; color: var(--muted); }
+.absence-status svg { flex: none; margin-top: 3px; }
+.absence-status small, .member-availability form > small { display: block; margin-top: 4px; font-size: 12px; line-height: 1.5; }
+.member-availability summary { cursor: pointer; font-size: 14px; }
+.member-availability form { display: grid; gap: 10px; margin-top: 10px; }
+.member-availability label { display: grid; gap: 6px; }
+.member-availability input { width: 100%; min-width: 0; }
+.member-availability button { justify-self: start; }

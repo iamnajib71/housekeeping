@@ -27,3 +27,13 @@ Google OAuth must allow the intended users. If the Google Cloud OAuth audience i
 `npm test`, `npm run typecheck`, and `npm run build` verify the application. `tests/accounts.integration.sql` runs in a rolled-back transaction to check empty setup, role separation, invitation binding and expiry, cross-home assignments, scoped settings/walkthrough replacement, original data preservation and revoked browser privileges. It also checks the real `service_role` can create a property.
 
 `scripts/accounts-check.mts` uses temporary, confirmed synthetic accounts without sending email. It exercises actual Supabase sessions and browser/API signup, empty property setup, address display, tenant guide persistence, invitations, one-tenant scheduling, role checks and cross-property access denial. It cleans up its own test accounts/properties afterward. Set `CHECK_BASE_URL` to the local test server (default `http://localhost:3007`) or deployment URL; the server's `APP_URL` must match that origin. Screenshots stay in ignored `.local` storage.
+
+## Time away
+
+Admins can open **Our household → Plan time away** on a tenant's card. Choose
+the first unavailable date; there is no automatic return. The app rebalances
+unstarted future duties among available tenants, keeps past/started work, and
+skips reminders to someone away on the cleaning date. Use **Cancel planned
+absence** before departure, or **Mark back today** when they return. Their login
+and cleaning history stay intact. A return resumes the ordinary rotation with
+no backlog of duties from the absence.

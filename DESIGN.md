@@ -108,3 +108,9 @@ meal API returns 410 while stored history remains intact. Automatic notification
 are email only: morning assignment and a single 10pm overdue email per unfinished
 turn. No day-before or next-day catch-up, meal or automatic push delivery. Keep
 admin rejection feedback. Home-screen installation is offered on demand only.
+
+In Our household, show scheduled/current time away on each member card. Admins
+can plan an away date and manually mark someone back. Rebalance unstarted
+future turns among date-eligible tenants, preserving all started work and prior
+history. Manual swaps cannot choose someone away on that cleaning date. An
+incomplete replacement roster is rejected without deleting dates or receipts.

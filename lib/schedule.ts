@@ -1,6 +1,7 @@
 import type { Assignment, Kind, Member, Settings, Submission } from './types';
 import { dailyTasksForDate } from './waste';
 import { isWeeklyBinTask, weeklyTasksWithBins } from './weekly-bins';
+import { memberAvailable } from './availability';
 export const TIMEZONE = 'Australia/Melbourne';
 export const DAILY_START = '2026-09-27';
 export const WEEKLY_START = '2026-10-05';
@@ -41,11 +42,13 @@ export function pairCycle(ids: string[]): string[][] {
   return pairs;
 }
 export function generateSchedule(members: Member[], settings: Settings, from: string, to: string): Assignment[] {
-  const ids = [...members].filter(m=>m.participates!==false).sort((a, b) => a.position - b.position).map(m => m.id);
-  if(!ids.length||!settings.daily_tasks.length||!settings.weekly_tasks.length)return [];
-  const pairs = pairCycle(ids);
+  const ordered = [...members].sort((a, b) => a.position - b.position);
+  if(!settings.daily_tasks.length||!settings.weekly_tasks.length)return [];
   const result: Assignment[] = [];
   for (let date = from; date <= to; date = addDays(date, 1)) {
+    const ids=ordered.filter(m=>memberAvailable(m,date)).map(m=>m.id);
+    if(!ids.length)continue;
+    const pairs=pairCycle(ids);
     const day = new Date(date + 'T12:00:00Z').getUTCDay();
     let kind: Kind, assigned: string[];
     if (day === 1 && date >= settings.weekly_start) {
@@ -59,7 +62,7 @@ export function generateSchedule(members: Member[], settings: Settings, from: st
         const slot = day === 0 ? 5 : day - 2;
         const startDay=new Date(settings.daily_start+'T12:00:00Z').getUTCDay(),startSlot=startDay===0?5:Math.max(0,startDay-2);
         const turn=week*6+slot-startSlot;
-        const index=settings.id===1&&ids.length===6?((slot-week)%6+6)%6:(turn%ids.length+Math.floor(turn/ids.length));
+        const index=settings.id===1&&ids.length===6?((slot-week)%6+6)%6:ids.length===5?turn:(turn%ids.length+Math.floor(turn/ids.length));
         assigned = [ids[((index%ids.length)+ids.length)%ids.length]];
       }
     } else continue;
