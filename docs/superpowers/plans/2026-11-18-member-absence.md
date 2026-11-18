@@ -22,7 +22,14 @@ wrong. Date-aware eligibility is the chosen implementation for the stated need.
   atomic roster update function. Keep client database access denied.
 - [x] Implement availability, admin API, compact household controls, reminder
   filtering, and date-aware manual assignees.
-- [ ] Build and test mobile/desktop plus authorization/database guards without
+- [x] Build and test mobile/desktop plus authorization/database guards without
   sending notifications. Commit and deploy.
-- [ ] Record Zarif away from 20 November on live and verify no unstarted future
+- [x] Record Zarif away from 20 November on live and verify no unstarted future
   duties assign him; verify preserved submissions and a fair five-person rota.
+
+Verified: 81 unit tests and production build passed. Transaction-only database
+fixtures verified service-only access, tenant/date guards, stale-update rollback,
+protected started work, cancelled old-owner emails and rejection of incomplete
+rosters without deletion. Browser checks passed locally and on production at
+320/390/1440px in both themes. Private live verification confirmed 74 unstarted
+turns rebalanced, no protected exceptions, and unchanged existing submissions.
